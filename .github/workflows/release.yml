@@ -86,25 +86,29 @@ jobs:
       - name: Generate app icons
         run: dart run flutter_launcher_icons
 
-      - name: Setup Keystore
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
-          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" > android/key.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
-          echo "storeFile=app/upload-keystore.jks" >> android/key.properties
-          cat android/key.properties
-
-      - name: Build APK (Release)
+      - name: Build APK (Release - unsigned)
         run: flutter build apk --release --split-per-abi
+
+      - name: Sign APKs
+        uses: r0adkll/sign-android-release@v1
+        id: sign_arm64
+        with:
+          releaseDirectory: build/app/outputs/flutter-apk
+          signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: "34.0.0"
 
       - name: Rename APKs
         run: |
           VERSION=${{ needs.get-version.outputs.version }}
           cd build/app/outputs/flutter-apk
-          mv app-arm64-v8a-release.apk SpotiFLAC-${VERSION}-arm64.apk || true
-          mv app-armeabi-v7a-release.apk SpotiFLAC-${VERSION}-arm32.apk || true
-          mv app-release.apk SpotiFLAC-${VERSION}-universal.apk || true
+          # Signed files have -signed suffix
+          mv app-arm64-v8a-release-signed.apk SpotiFLAC-${VERSION}-arm64.apk || mv app-arm64-v8a-release.apk SpotiFLAC-${VERSION}-arm64.apk || true
+          mv app-armeabi-v7a-release-signed.apk SpotiFLAC-${VERSION}-arm32.apk || mv app-armeabi-v7a-release.apk SpotiFLAC-${VERSION}-arm32.apk || true
+          mv app-release-signed.apk SpotiFLAC-${VERSION}-universal.apk || mv app-release.apk SpotiFLAC-${VERSION}-universal.apk || true
           ls -la
 
       - name: Upload APK artifact

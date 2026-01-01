@@ -5,7 +5,7 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Load keystore properties from key.properties file
+// Load keystore properties for local builds
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = java.util.Properties()
 if (keystorePropertiesFile.exists()) {
@@ -55,6 +55,8 @@ android {
 
     buildTypes {
         release {
+            // For local builds: use release signing if key.properties exists
+            // For CI builds: APK is signed by GitHub Action after build
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {

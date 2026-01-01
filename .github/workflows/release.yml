@@ -12,23 +12,29 @@ on:
         default: 'v1.0.0'
 
 jobs:
-  build-android:
+  # Get version first (quick job)
+  get-version:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.get_version.outputs.version }}
-    
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Get version
-        id: get_version
+        id: version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           else
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
+
+  # Android and iOS build in PARALLEL
+  build-android:
+    runs-on: ubuntu-latest
+    needs: get-version
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -41,6 +47,16 @@ jobs:
         with:
           go-version: '1.21'
           cache-dependency-path: go_backend/go.sum
+
+      # Cache Gradle for faster builds
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
 
       - name: Install Android SDK & NDK
         uses: android-actions/setup-android@v3
@@ -75,12 +91,10 @@ jobs:
 
       - name: Rename APKs
         run: |
-          VERSION=${{ steps.get_version.outputs.version }}
+          VERSION=${{ needs.get-version.outputs.version }}
           cd build/app/outputs/flutter-apk
-          # Rename split APKs
           mv app-arm64-v8a-release.apk SpotiFLAC-${VERSION}-arm64.apk || true
           mv app-armeabi-v7a-release.apk SpotiFLAC-${VERSION}-arm32.apk || true
-          # Also rename universal if exists
           mv app-release.apk SpotiFLAC-${VERSION}-universal.apk || true
           ls -la
 
@@ -92,7 +106,7 @@ jobs:
 
   build-ios:
     runs-on: macos-latest
-    needs: build-android
+    needs: get-version  # Only depends on version, NOT android build!
     
     steps:
       - name: Checkout repository
@@ -103,6 +117,14 @@ jobs:
         with:
           go-version: '1.21'
           cache-dependency-path: go_backend/go.sum
+
+      # Cache CocoaPods
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: pods-${{ runner.os }}-
 
       - name: Install gomobile
         run: |
@@ -119,13 +141,48 @@ jobs:
 
       - name: Verify XCFramework created
         run: |
-          echo "=== Checking XCFramework ==="
           ls -la ios/Frameworks/
           ls -la ios/Frameworks/Gobackend.xcframework/ || (echo "ERROR: XCFramework not found!" && exit 1)
-          echo "=== Debug.xcconfig ==="
-          cat ios/Flutter/Debug.xcconfig
-          echo "=== Release.xcconfig ==="
-          cat ios/Flutter/Release.xcconfig
+          
+      - name: Add XCFramework to Xcode project
+        run: |
+          # Install xcodeproj gem for modifying Xcode project
+          sudo gem install xcodeproj
+          
+          # Create Ruby script to add framework
+          cat > add_framework.rb << 'EOF'
+          require 'xcodeproj'
+          
+          project_path = 'ios/Runner.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
+          
+          # Get the main target
+          target = project.targets.find { |t| t.name == 'Runner' }
+          
+          # Get or create Frameworks group
+          frameworks_group = project.main_group.find_subpath('Frameworks', true)
+          frameworks_group ||= project.main_group.new_group('Frameworks')
+          
+          # Add XCFramework reference
+          framework_path = 'Frameworks/Gobackend.xcframework'
+          framework_ref = frameworks_group.new_file(framework_path, :project)
+          
+          # Add to frameworks build phase
+          frameworks_build_phase = target.frameworks_build_phase
+          frameworks_build_phase.add_file_reference(framework_ref)
+          
+          # Add to embed frameworks build phase
+          embed_phase = target.build_phases.find { |p| p.is_a?(Xcodeproj::Project::Object::PBXCopyFilesBuildPhase) && p.name == 'Embed Frameworks' }
+          if embed_phase
+            build_file = embed_phase.add_file_reference(framework_ref)
+            build_file.settings = { 'ATTRIBUTES' => ['CodeSignOnCopy', 'RemoveHeadersOnCopy'] }
+          end
+          
+          project.save
+          puts "Successfully added Gobackend.xcframework to Xcode project"
+          EOF
+          
+          ruby add_framework.rb
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -144,7 +201,7 @@ jobs:
 
       - name: Create IPA
         run: |
-          VERSION=${{ needs.build-android.outputs.version }}
+          VERSION=${{ needs.get-version.outputs.version }}
           mkdir -p build/ios/ipa
           cd build/ios/iphoneos
           mkdir Payload
@@ -160,14 +217,11 @@ jobs:
 
   create-release:
     runs-on: ubuntu-latest
-    needs: [build-android, build-ios]
+    needs: [get-version, build-android, build-ios]
     permissions:
       contents: write
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Download Android APK
         uses: actions/download-artifact@v4
         with:
@@ -183,34 +237,22 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ needs.build-android.outputs.version }}
-          name: SpotiFLAC ${{ needs.build-android.outputs.version }}
+          tag_name: ${{ needs.get-version.outputs.version }}
+          name: SpotiFLAC ${{ needs.get-version.outputs.version }}
           body: |
-            ## SpotiFLAC ${{ needs.build-android.outputs.version }}
+            ## SpotiFLAC ${{ needs.get-version.outputs.version }}
             
             Download Spotify tracks in FLAC quality from Tidal, Qobuz & Amazon Music.
             
             ### Downloads
-            - **Android (arm64)**: `SpotiFLAC-${{ needs.build-android.outputs.version }}-arm64.apk` (recommended for most devices)
-            - **Android (arm32)**: `SpotiFLAC-${{ needs.build-android.outputs.version }}-arm32.apk` (for older devices)
-            - **iOS**: `SpotiFLAC-${{ needs.build-android.outputs.version }}-ios-unsigned.ipa` (requires sideloading)
-            
-            ### Features
-            - Search Spotify tracks, albums, and playlists
-            - Download in FLAC quality from multiple sources
-            - Automatic fallback to available services
-            - Embedded metadata and cover art
-            - Lyrics support (synced and plain)
-            - Material 3 Expressive UI with dynamic colors
+            - **Android (arm64)**: `SpotiFLAC-${{ needs.get-version.outputs.version }}-arm64.apk` (recommended)
+            - **Android (arm32)**: `SpotiFLAC-${{ needs.get-version.outputs.version }}-arm32.apk` (older devices)
+            - **iOS**: `SpotiFLAC-${{ needs.get-version.outputs.version }}-ios-unsigned.ipa` (sideload required)
             
             ### Installation
             **Android**: Enable "Install from unknown sources" and install the APK
             **iOS**: Use AltStore, Sideloadly, or similar tools to sideload the IPA
-            
-            ---
-            *Note: iOS IPA is unsigned and requires sideloading*
-          files: |
-            ./release/*
+          files: ./release/*
           draft: false
           prerelease: false
         env:

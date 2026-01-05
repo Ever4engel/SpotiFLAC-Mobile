@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // QobuzDownloader handles Qobuz downloads
@@ -37,6 +38,63 @@ type QobuzTrack struct {
 	Performer struct {
 		Name string `json:"name"`
 	} `json:"performer"`
+}
+
+// qobuzArtistsMatch checks if the artist names are similar enough
+func qobuzArtistsMatch(expectedArtist, foundArtist string) bool {
+	normExpected := strings.ToLower(strings.TrimSpace(expectedArtist))
+	normFound := strings.ToLower(strings.TrimSpace(foundArtist))
+	
+	// Exact match
+	if normExpected == normFound {
+		return true
+	}
+	
+	// Check if one contains the other
+	if strings.Contains(normExpected, normFound) || strings.Contains(normFound, normExpected) {
+		return true
+	}
+	
+	// Check first artist (before comma or feat)
+	expectedFirst := strings.Split(normExpected, ",")[0]
+	expectedFirst = strings.Split(expectedFirst, " feat")[0]
+	expectedFirst = strings.Split(expectedFirst, " ft.")[0]
+	expectedFirst = strings.TrimSpace(expectedFirst)
+	
+	foundFirst := strings.Split(normFound, ",")[0]
+	foundFirst = strings.Split(foundFirst, " feat")[0]
+	foundFirst = strings.Split(foundFirst, " ft.")[0]
+	foundFirst = strings.TrimSpace(foundFirst)
+	
+	if expectedFirst == foundFirst {
+		return true
+	}
+	
+	// Check if first artist is contained in the other
+	if strings.Contains(expectedFirst, foundFirst) || strings.Contains(foundFirst, expectedFirst) {
+		return true
+	}
+	
+	// If scripts are different (one is ASCII, one is non-ASCII like Japanese/Chinese/Korean),
+	// assume they're the same artist with different transliteration
+	expectedASCII := qobuzIsASCIIString(expectedArtist)
+	foundASCII := qobuzIsASCIIString(foundArtist)
+	if expectedASCII != foundASCII {
+		fmt.Printf("[Qobuz] Artist names in different scripts, assuming match: '%s' vs '%s'\n", expectedArtist, foundArtist)
+		return true
+	}
+	
+	return false
+}
+
+// qobuzIsASCIIString checks if a string contains only ASCII characters
+func qobuzIsASCIIString(s string) bool {
+	for _, r := range s {
+		if r > 127 {
+			return false
+		}
+	}
+	return true
 }
 
 // NewQobuzDownloader creates a new Qobuz downloader
@@ -451,34 +509,35 @@ func downloadFromQobuz(req DownloadRequest) (QobuzDownloadResult, error) {
 	// Strategy 1: Search by ISRC with duration verification
 	if req.ISRC != "" {
 		track, err = downloader.SearchTrackByISRCWithDuration(req.ISRC, expectedDurationSec)
+		// Verify artist
+		if track != nil && !qobuzArtistsMatch(req.ArtistName, track.Performer.Name) {
+			fmt.Printf("[Qobuz] Artist mismatch from ISRC search: expected '%s', got '%s'. Rejecting.\n", 
+				req.ArtistName, track.Performer.Name)
+			track = nil
+		}
 	}
 
 	// Strategy 2: Search by metadata with duration verification
 	if track == nil {
 		track, err = downloader.SearchTrackByMetadataWithDuration(req.TrackName, req.ArtistName, expectedDurationSec)
+		// Verify artist
+		if track != nil && !qobuzArtistsMatch(req.ArtistName, track.Performer.Name) {
+			fmt.Printf("[Qobuz] Artist mismatch from metadata search: expected '%s', got '%s'. Rejecting.\n", 
+				req.ArtistName, track.Performer.Name)
+			track = nil
+		}
 	}
 
 	if track == nil {
-		errMsg := "could not find track on Qobuz"
+		errMsg := "could not find matching track on Qobuz (artist/duration mismatch)"
 		if err != nil {
 			errMsg = err.Error()
 		}
 		return QobuzDownloadResult{}, fmt.Errorf("qobuz search failed: %s", errMsg)
 	}
 
-	// Final duration verification
-	if expectedDurationSec > 0 {
-		durationDiff := track.Duration - expectedDurationSec
-		if durationDiff < 0 {
-			durationDiff = -durationDiff
-		}
-		if durationDiff > 30 {
-			return QobuzDownloadResult{}, fmt.Errorf("duration mismatch: expected %ds, found %ds (diff: %ds). Track may be wrong version", 
-				expectedDurationSec, track.Duration, durationDiff)
-		}
-		fmt.Printf("[Qobuz] Duration verified: expected %ds, found %ds (diff: %ds)\n", 
-			expectedDurationSec, track.Duration, durationDiff)
-	}
+	// Log match found
+	fmt.Printf("[Qobuz] Match found: '%s' by '%s' (duration: %ds)\n", track.Title, track.Performer.Name, track.Duration)
 
 	// Build filename
 	filename := buildFilenameFromTemplate(req.FilenameFormat, map[string]interface{}{

@@ -14,100 +14,109 @@ class AppearanceSettingsPage extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final topPadding = MediaQuery.of(context).padding.top;
 
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // Collapsing App Bar with back button
-          SliverAppBar(
-            expandedHeight: 120 + topPadding,
-            collapsedHeight: kToolbarHeight,
-            floating: false,
-            pinned: true,
-            backgroundColor: colorScheme.surface,
-            surfaceTintColor: Colors.transparent,
-            leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
-            flexibleSpace: LayoutBuilder(
-              builder: (context, constraints) {
-                final maxHeight = 120 + topPadding;
-                final minHeight = kToolbarHeight + topPadding;
-                final expandRatio = ((constraints.maxHeight - minHeight) / (maxHeight - minHeight)).clamp(0.0, 1.0);
-                final animation = AlwaysStoppedAnimation(expandRatio);
-                return FlexibleSpaceBar(
-                  expandedTitleScale: 1.0,
-                  titlePadding: EdgeInsets.zero,
-                  title: SafeArea(
-                    child: Container(
-                      alignment: Alignment.bottomLeft,
-                      padding: EdgeInsets.only(
-                        left: Tween<double>(begin: 56, end: 24).evaluate(animation),
-                        bottom: Tween<double>(begin: 16, end: 16).evaluate(animation),
-                      ),
-                      child: Text('Appearance',
-                        style: TextStyle(
-                          fontSize: Tween<double>(begin: 20, end: 28).evaluate(animation),
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        body: CustomScrollView(
+          slivers: [
+            // Collapsing App Bar with back button
+            SliverAppBar(
+              expandedHeight: 120 + topPadding,
+              collapsedHeight: kToolbarHeight,
+              floating: false,
+              pinned: true,
+              backgroundColor: colorScheme.surface,
+              surfaceTintColor: Colors.transparent,
+              leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
+              flexibleSpace: _AppBarTitle(title: 'Appearance', topPadding: topPadding),
+            ),
+
+            // Theme section
+            const SliverToBoxAdapter(child: SettingsSectionHeader(title: 'Theme')),
+            SliverToBoxAdapter(
+              child: SettingsGroup(
+                children: [
+                  _ThemeModeSelector(
+                    currentMode: themeSettings.themeMode,
+                    onChanged: (mode) => ref.read(themeProvider.notifier).setThemeMode(mode),
+                  ),
+                ],
+              ),
+            ),
+
+            // Color section
+            const SliverToBoxAdapter(child: SettingsSectionHeader(title: 'Color')),
+            SliverToBoxAdapter(
+              child: SettingsGroup(
+                children: [
+                  SettingsSwitchItem(
+                    icon: Icons.auto_awesome,
+                    title: 'Dynamic Color',
+                    subtitle: 'Use colors from your wallpaper',
+                    value: themeSettings.useDynamicColor,
+                    onChanged: (value) => ref.read(themeProvider.notifier).setUseDynamicColor(value),
+                    showDivider: !themeSettings.useDynamicColor,
+                  ),
+                  if (!themeSettings.useDynamicColor)
+                    _ColorPicker(
+                      currentColor: themeSettings.seedColorValue,
+                      onColorSelected: (color) => ref.read(themeProvider.notifier).setSeedColor(color),
                     ),
+                ],
+              ),
+            ),
+
+            // Layout section
+            const SliverToBoxAdapter(child: SettingsSectionHeader(title: 'Layout')),
+            SliverToBoxAdapter(
+              child: SettingsGroup(
+                children: [
+                  _HistoryViewSelector(
+                    currentMode: settings.historyViewMode,
+                    onChanged: (mode) => ref.read(settingsProvider.notifier).setHistoryViewMode(mode),
                   ),
-                );
-              },
+                ],
+              ),
             ),
-          ),
 
-          // Theme section
-          const SliverToBoxAdapter(child: SettingsSectionHeader(title: 'Theme')),
-          SliverToBoxAdapter(
-            child: SettingsGroup(
-              children: [
-                _ThemeModeSelector(
-                  currentMode: themeSettings.themeMode,
-                  onChanged: (mode) => ref.read(themeProvider.notifier).setThemeMode(mode),
-                ),
-              ],
-            ),
-          ),
-
-          // Color section
-          const SliverToBoxAdapter(child: SettingsSectionHeader(title: 'Color')),
-          SliverToBoxAdapter(
-            child: SettingsGroup(
-              children: [
-                SettingsSwitchItem(
-                  icon: Icons.auto_awesome,
-                  title: 'Dynamic Color',
-                  subtitle: 'Use colors from your wallpaper',
-                  value: themeSettings.useDynamicColor,
-                  onChanged: (value) => ref.read(themeProvider.notifier).setUseDynamicColor(value),
-                  showDivider: !themeSettings.useDynamicColor,
-                ),
-                if (!themeSettings.useDynamicColor)
-                  _ColorPicker(
-                    currentColor: themeSettings.seedColorValue,
-                    onColorSelected: (color) => ref.read(themeProvider.notifier).setSeedColor(color),
-                  ),
-              ],
-            ),
-          ),
-
-          // Layout section
-          const SliverToBoxAdapter(child: SettingsSectionHeader(title: 'Layout')),
-          SliverToBoxAdapter(
-            child: SettingsGroup(
-              children: [
-                _HistoryViewSelector(
-                  currentMode: settings.historyViewMode,
-                  onChanged: (mode) => ref.read(settingsProvider.notifier).setHistoryViewMode(mode),
-                ),
-              ],
-            ),
-          ),
-
-          // Fill remaining for scroll
-          const SliverFillRemaining(hasScrollBody: false, child: SizedBox()),
-        ],
+            // Fill remaining for scroll
+            const SliverFillRemaining(hasScrollBody: false, child: SizedBox()),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// Optimized app bar title with animation
+class _AppBarTitle extends StatelessWidget {
+  final String title;
+  final double topPadding;
+  
+  const _AppBarTitle({required this.title, required this.topPadding});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxHeight = 120 + topPadding;
+        final minHeight = kToolbarHeight + topPadding;
+        final expandRatio = ((constraints.maxHeight - minHeight) / (maxHeight - minHeight)).clamp(0.0, 1.0);
+        final leftPadding = 56 - (32 * expandRatio); // 56 -> 24
+        return FlexibleSpaceBar(
+          expandedTitleScale: 1.0,
+          titlePadding: EdgeInsets.only(left: leftPadding, bottom: 16),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontSize: 20 + (8 * expandRatio), // 20 -> 28
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -869,6 +869,64 @@ type TidalDownloadResult struct {
 	SampleRate int
 }
 
+// artistsMatch checks if the artist names are similar enough
+func artistsMatch(spotifyArtist, tidalArtist string) bool {
+	normSpotify := strings.ToLower(strings.TrimSpace(spotifyArtist))
+	normTidal := strings.ToLower(strings.TrimSpace(tidalArtist))
+	
+	// Exact match
+	if normSpotify == normTidal {
+		return true
+	}
+	
+	// Check if one contains the other (for cases like "Artist" vs "Artist feat. Someone")
+	if strings.Contains(normSpotify, normTidal) || strings.Contains(normTidal, normSpotify) {
+		return true
+	}
+	
+	// Check first artist (before comma or feat)
+	spotifyFirst := strings.Split(normSpotify, ",")[0]
+	spotifyFirst = strings.Split(spotifyFirst, " feat")[0]
+	spotifyFirst = strings.Split(spotifyFirst, " ft.")[0]
+	spotifyFirst = strings.TrimSpace(spotifyFirst)
+	
+	tidalFirst := strings.Split(normTidal, ",")[0]
+	tidalFirst = strings.Split(tidalFirst, " feat")[0]
+	tidalFirst = strings.Split(tidalFirst, " ft.")[0]
+	tidalFirst = strings.TrimSpace(tidalFirst)
+	
+	if spotifyFirst == tidalFirst {
+		return true
+	}
+	
+	// Check if first artist is contained in the other
+	if strings.Contains(spotifyFirst, tidalFirst) || strings.Contains(tidalFirst, spotifyFirst) {
+		return true
+	}
+	
+	// If scripts are different (one is ASCII, one is non-ASCII like Japanese/Chinese/Korean),
+	// assume they're the same artist with different transliteration
+	// This handles cases like "鈴木雅之" vs "Masayuki Suzuki"
+	spotifyASCII := isASCIIString(spotifyArtist)
+	tidalASCII := isASCIIString(tidalArtist)
+	if spotifyASCII != tidalASCII {
+		fmt.Printf("[Tidal] Artist names in different scripts, assuming match: '%s' vs '%s'\n", spotifyArtist, tidalArtist)
+		return true
+	}
+	
+	return false
+}
+
+// isASCIIString checks if a string contains only ASCII characters
+func isASCIIString(s string) bool {
+	for _, r := range s {
+		if r > 127 {
+			return false
+		}
+	}
+	return true
+}
+
 // downloadFromTidal downloads a track using the request parameters
 func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 	downloader := NewTidalDownloader()
@@ -892,17 +950,36 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 			trackID, idErr := downloader.GetTrackIDFromURL(tidalURL)
 			if idErr == nil {
 				track, err = downloader.GetTrackInfoByID(trackID)
-				// Verify duration if we have expected duration
-				if track != nil && expectedDurationSec > 0 {
-					durationDiff := track.Duration - expectedDurationSec
-					if durationDiff < 0 {
-						durationDiff = -durationDiff
+				if track != nil {
+					// Get artist name from track
+					tidalArtist := track.Artist.Name
+					if len(track.Artists) > 0 {
+						var artistNames []string
+						for _, a := range track.Artists {
+							artistNames = append(artistNames, a.Name)
+						}
+						tidalArtist = strings.Join(artistNames, ", ")
 					}
-					// Allow 30 seconds tolerance
-					if durationDiff > 30 {
-						fmt.Printf("[Tidal] Duration mismatch from SongLink: expected %ds, got %ds. Rejecting.\n", 
-							expectedDurationSec, track.Duration)
-						track = nil // Reject this match
+					
+					// Verify artist matches
+					if !artistsMatch(req.ArtistName, tidalArtist) {
+						fmt.Printf("[Tidal] Artist mismatch from SongLink: expected '%s', got '%s'. Rejecting.\n", 
+							req.ArtistName, tidalArtist)
+						track = nil
+					}
+					
+					// Verify duration if we have expected duration
+					if track != nil && expectedDurationSec > 0 {
+						durationDiff := track.Duration - expectedDurationSec
+						if durationDiff < 0 {
+							durationDiff = -durationDiff
+						}
+						// Allow 30 seconds tolerance
+						if durationDiff > 30 {
+							fmt.Printf("[Tidal] Duration mismatch from SongLink: expected %ds, got %ds. Rejecting.\n", 
+								expectedDurationSec, track.Duration)
+							track = nil // Reject this match
+						}
 					}
 				}
 			}
@@ -912,34 +989,63 @@ func downloadFromTidal(req DownloadRequest) (TidalDownloadResult, error) {
 	// Strategy 2: Search by ISRC with duration verification
 	if track == nil && req.ISRC != "" {
 		track, err = downloader.SearchTrackByMetadataWithISRC(req.TrackName, req.ArtistName, req.ISRC, expectedDurationSec)
+		// Verify artist for ISRC match too
+		if track != nil {
+			tidalArtist := track.Artist.Name
+			if len(track.Artists) > 0 {
+				var artistNames []string
+				for _, a := range track.Artists {
+					artistNames = append(artistNames, a.Name)
+				}
+				tidalArtist = strings.Join(artistNames, ", ")
+			}
+			if !artistsMatch(req.ArtistName, tidalArtist) {
+				fmt.Printf("[Tidal] Artist mismatch from ISRC search: expected '%s', got '%s'. Rejecting.\n", 
+					req.ArtistName, tidalArtist)
+				track = nil
+			}
+		}
 	}
 
 	// Strategy 3: Search by metadata only (no ISRC requirement)
 	if track == nil {
 		track, err = downloader.SearchTrackByMetadataWithISRC(req.TrackName, req.ArtistName, "", expectedDurationSec)
+		// Verify artist for metadata search too
+		if track != nil {
+			tidalArtist := track.Artist.Name
+			if len(track.Artists) > 0 {
+				var artistNames []string
+				for _, a := range track.Artists {
+					artistNames = append(artistNames, a.Name)
+				}
+				tidalArtist = strings.Join(artistNames, ", ")
+			}
+			if !artistsMatch(req.ArtistName, tidalArtist) {
+				fmt.Printf("[Tidal] Artist mismatch from metadata search: expected '%s', got '%s'. Rejecting.\n", 
+					req.ArtistName, tidalArtist)
+				track = nil
+			}
+		}
 	}
 
 	if track == nil {
-		errMsg := "could not find track on Tidal"
+		errMsg := "could not find matching track on Tidal (artist/duration mismatch)"
 		if err != nil {
 			errMsg = err.Error()
 		}
 		return TidalDownloadResult{}, fmt.Errorf("tidal search failed: %s", errMsg)
 	}
 
-	// Final duration verification
-	if expectedDurationSec > 0 {
-		durationDiff := track.Duration - expectedDurationSec
-		if durationDiff < 0 {
-			durationDiff = -durationDiff
+	// Final verification logging
+	tidalArtist := track.Artist.Name
+	if len(track.Artists) > 0 {
+		var artistNames []string
+		for _, a := range track.Artists {
+			artistNames = append(artistNames, a.Name)
 		}
-		if durationDiff > 30 {
-			return TidalDownloadResult{}, fmt.Errorf("duration mismatch: expected %ds, found %ds (diff: %ds). Track may be wrong version", 
-				expectedDurationSec, track.Duration, durationDiff)
-		}
-		fmt.Printf("[Tidal] Duration verified: expected %ds, found %ds (diff: %ds)\n", 
-			expectedDurationSec, track.Duration, durationDiff)
+		tidalArtist = strings.Join(artistNames, ", ")
 	}
+	fmt.Printf("[Tidal] Match found: '%s' by '%s' (duration: %ds)\n", track.Title, tidalArtist, track.Duration)
 
 	// Build filename
 	filename := buildFilenameFromTemplate(req.FilenameFormat, map[string]interface{}{

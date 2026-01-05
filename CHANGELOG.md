@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.0.6] - 2026-01-05
+
+### Fixed
+- **Duration Display Bug**: Fixed duration showing incorrect values like "4135:53" instead of "4:14"
+  - `duration_ms` (milliseconds) was being stored directly without conversion to seconds
+  - Now properly converts milliseconds to seconds before display
+- **Audio Quality from File**: Quality info (bit depth/sample rate) now read from actual FLAC file instead of trusting API
+  - More accurate quality display for all services (Tidal, Qobuz, Amazon)
+  - Also reads quality from existing files when skipping duplicates
+- **Artist Verification for Downloads**: Added artist name verification to prevent downloading wrong tracks
+  - Verifies artist matches between Spotify metadata and streaming service
+  - Handles different scripts (Japanese/Chinese vs Latin) as same artist with different transliteration
+  - Applied to Tidal, Qobuz, and Amazon downloads
+- **Metadata Case-Sensitivity**: Fixed FLAC metadata not being properly overwritten when downloaded file has lowercase tags
+  - Now uses case-insensitive comparison when replacing existing Vorbis comments
+  - Fixes issue where Amazon downloads could have duplicate metadata tags
+- **Settings Navigation Freeze**: Fixed app freezing when navigating back from settings sub-menus on some devices (e.g., OnePlus Nord 2T 5G)
+  - Added proper PopScope handling for predictive back gesture on Android 14+
+
 ## [2.0.5] - 2026-01-05
 
 ### Added

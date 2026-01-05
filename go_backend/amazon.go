@@ -36,6 +36,63 @@ type DoubleDoubleStatusResponse struct {
 	} `json:"current"`
 }
 
+// amazonArtistsMatch checks if the artist names are similar enough
+func amazonArtistsMatch(expectedArtist, foundArtist string) bool {
+	normExpected := strings.ToLower(strings.TrimSpace(expectedArtist))
+	normFound := strings.ToLower(strings.TrimSpace(foundArtist))
+	
+	// Exact match
+	if normExpected == normFound {
+		return true
+	}
+	
+	// Check if one contains the other
+	if strings.Contains(normExpected, normFound) || strings.Contains(normFound, normExpected) {
+		return true
+	}
+	
+	// Check first artist (before comma or feat)
+	expectedFirst := strings.Split(normExpected, ",")[0]
+	expectedFirst = strings.Split(expectedFirst, " feat")[0]
+	expectedFirst = strings.Split(expectedFirst, " ft.")[0]
+	expectedFirst = strings.TrimSpace(expectedFirst)
+	
+	foundFirst := strings.Split(normFound, ",")[0]
+	foundFirst = strings.Split(foundFirst, " feat")[0]
+	foundFirst = strings.Split(foundFirst, " ft.")[0]
+	foundFirst = strings.TrimSpace(foundFirst)
+	
+	if expectedFirst == foundFirst {
+		return true
+	}
+	
+	// Check if first artist is contained in the other
+	if strings.Contains(expectedFirst, foundFirst) || strings.Contains(foundFirst, expectedFirst) {
+		return true
+	}
+	
+	// If scripts are different (one is ASCII, one is non-ASCII like Japanese/Chinese/Korean),
+	// assume they're the same artist with different transliteration
+	expectedASCII := amazonIsASCIIString(expectedArtist)
+	foundASCII := amazonIsASCIIString(foundArtist)
+	if expectedASCII != foundASCII {
+		fmt.Printf("[Amazon] Artist names in different scripts, assuming match: '%s' vs '%s'\n", expectedArtist, foundArtist)
+		return true
+	}
+	
+	return false
+}
+
+// amazonIsASCIIString checks if a string contains only ASCII characters
+func amazonIsASCIIString(s string) bool {
+	for _, r := range s {
+		if r > 127 {
+			return false
+		}
+	}
+	return true
+}
+
 // NewAmazonDownloader creates a new Amazon downloader using DoubleDouble service
 func NewAmazonDownloader() *AmazonDownloader {
 	return &AmazonDownloader{
@@ -294,6 +351,15 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 	if err != nil {
 		return AmazonDownloadResult{}, fmt.Errorf("failed to get download URL: %w", err)
 	}
+
+	// Verify artist matches
+	if artistName != "" && !amazonArtistsMatch(req.ArtistName, artistName) {
+		fmt.Printf("[Amazon] Artist mismatch: expected '%s', got '%s'. Rejecting.\n", req.ArtistName, artistName)
+		return AmazonDownloadResult{}, fmt.Errorf("artist mismatch: expected '%s', got '%s'", req.ArtistName, artistName)
+	}
+
+	// Log match found
+	fmt.Printf("[Amazon] Match found: '%s' by '%s'\n", trackName, artistName)
 
 	// Build filename using Spotify metadata (more accurate)
 	filename := buildFilenameFromTemplate(req.FilenameFormat, map[string]interface{}{

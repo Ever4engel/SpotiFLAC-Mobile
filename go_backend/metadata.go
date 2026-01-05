@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/go-flac/flacpicture"
 	"github.com/go-flac/flacvorbis"
@@ -273,10 +274,16 @@ func setComment(cmt *flacvorbis.MetaDataBlockVorbisComment, key, value string) {
 	if value == "" {
 		return
 	}
-	// Remove existing
+	// Remove existing (case-insensitive comparison for Vorbis comments)
+	keyUpper := strings.ToUpper(key)
 	for i := len(cmt.Comments) - 1; i >= 0; i-- {
-		if len(cmt.Comments[i]) > len(key)+1 && cmt.Comments[i][:len(key)+1] == key+"=" {
-			cmt.Comments = append(cmt.Comments[:i], cmt.Comments[i+1:]...)
+		comment := cmt.Comments[i]
+		eqIdx := strings.Index(comment, "=")
+		if eqIdx > 0 {
+			existingKey := strings.ToUpper(comment[:eqIdx])
+			if existingKey == keyUpper {
+				cmt.Comments = append(cmt.Comments[:i], cmt.Comments[i+1:]...)
+			}
 		}
 	}
 	// Add new

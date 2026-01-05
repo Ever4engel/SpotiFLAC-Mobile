@@ -5,6 +5,7 @@ package gobackend
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -216,15 +217,34 @@ func DownloadTrack(requestJSON string) (string, error) {
 	
 	// Check if file already exists
 	if len(result.FilePath) > 7 && result.FilePath[:7] == "EXISTS:" {
+		actualPath := result.FilePath[7:]
+		// Read actual quality from existing file
+		quality, qErr := GetAudioQuality(actualPath)
+		if qErr == nil {
+			result.BitDepth = quality.BitDepth
+			result.SampleRate = quality.SampleRate
+		}
 		resp := DownloadResponse{
-			Success:       true,
-			Message:       "File already exists",
-			FilePath:      result.FilePath[7:],
-			AlreadyExists: true,
-			Service:       req.Service,
+			Success:          true,
+			Message:          "File already exists",
+			FilePath:         actualPath,
+			AlreadyExists:    true,
+			ActualBitDepth:   result.BitDepth,
+			ActualSampleRate: result.SampleRate,
+			Service:          req.Service,
 		}
 		jsonBytes, _ := json.Marshal(resp)
 		return string(jsonBytes), nil
+	}
+	
+	// Read actual quality from downloaded file (more accurate than API)
+	quality, qErr := GetAudioQuality(result.FilePath)
+	if qErr == nil {
+		result.BitDepth = quality.BitDepth
+		result.SampleRate = quality.SampleRate
+		fmt.Printf("[Download] Actual quality from file: %d-bit/%dHz\n", quality.BitDepth, quality.SampleRate)
+	} else {
+		fmt.Printf("[Download] Could not read quality from file: %v\n", qErr)
 	}
 	
 	resp := DownloadResponse{
@@ -314,15 +334,34 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 		if err == nil {
 			// Check if file already exists
 			if len(result.FilePath) > 7 && result.FilePath[:7] == "EXISTS:" {
+				actualPath := result.FilePath[7:]
+				// Read actual quality from existing file
+				quality, qErr := GetAudioQuality(actualPath)
+				if qErr == nil {
+					result.BitDepth = quality.BitDepth
+					result.SampleRate = quality.SampleRate
+				}
 				resp := DownloadResponse{
-					Success:       true,
-					Message:       "File already exists",
-					FilePath:      result.FilePath[7:],
-					AlreadyExists: true,
-					Service:       service,
+					Success:          true,
+					Message:          "File already exists",
+					FilePath:         actualPath,
+					AlreadyExists:    true,
+					ActualBitDepth:   result.BitDepth,
+					ActualSampleRate: result.SampleRate,
+					Service:          service,
 				}
 				jsonBytes, _ := json.Marshal(resp)
 				return string(jsonBytes), nil
+			}
+			
+			// Read actual quality from downloaded file (more accurate than API)
+			quality, qErr := GetAudioQuality(result.FilePath)
+			if qErr == nil {
+				result.BitDepth = quality.BitDepth
+				result.SampleRate = quality.SampleRate
+				fmt.Printf("[Download] Actual quality from file: %d-bit/%dHz\n", quality.BitDepth, quality.SampleRate)
+			} else {
+				fmt.Printf("[Download] Could not read quality from file: %v\n", qErr)
 			}
 			
 			resp := DownloadResponse{

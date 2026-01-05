@@ -104,7 +104,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
       albumArtist: data['album_artist'] as String?,
       coverUrl: data['images'] as String?,
       isrc: data['isrc'] as String?,
-      duration: data['duration_ms'] as int? ?? 0,
+      duration: ((data['duration_ms'] as int? ?? 0) / 1000).round(),
       trackNumber: data['track_number'] as int?,
       discNumber: data['disc_number'] as int?,
       releaseDate: data['release_date'] as String?,

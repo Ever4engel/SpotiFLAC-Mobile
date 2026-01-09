@@ -230,8 +230,34 @@ class TrackNotifier extends Notifier<TrackState> {
       final trackList = results['tracks'] as List<dynamic>? ?? [];
       final artistList = results['artists'] as List<dynamic>? ?? [];
       
-      final tracks = trackList.map((t) => _parseSearchTrack(t as Map<String, dynamic>)).toList();
-      final artists = artistList.map((a) => _parseSearchArtist(a as Map<String, dynamic>)).toList();
+      // Parse tracks with error handling per item
+      final tracks = <Track>[];
+      for (final t in trackList) {
+        try {
+          if (t is Map<String, dynamic>) {
+            tracks.add(_parseSearchTrack(t));
+          }
+        } catch (e) {
+          // ignore: avoid_print
+          print('[Search] Failed to parse track: $e');
+        }
+      }
+      
+      // Parse artists with error handling per item
+      final artists = <SearchArtist>[];
+      for (final a in artistList) {
+        try {
+          if (a is Map<String, dynamic>) {
+            artists.add(_parseSearchArtist(a));
+          }
+        } catch (e) {
+          // ignore: avoid_print
+          print('[Search] Failed to parse artist: $e');
+        }
+      }
+      
+      // ignore: avoid_print
+      print('[Search] Parsed ${tracks.length} tracks, ${artists.length} artists');
       
       state = TrackState(
         tracks: tracks,
@@ -310,18 +336,27 @@ class TrackNotifier extends Notifier<TrackState> {
   }
 
   Track _parseSearchTrack(Map<String, dynamic> data) {
+    // Handle duration_ms which might be int or double
+    int durationMs = 0;
+    final durationValue = data['duration_ms'];
+    if (durationValue is int) {
+      durationMs = durationValue;
+    } else if (durationValue is double) {
+      durationMs = durationValue.toInt();
+    }
+    
     return Track(
-      id: data['spotify_id'] as String? ?? '',
-      name: data['name'] as String? ?? '',
-      artistName: data['artists'] as String? ?? '',
-      albumName: data['album_name'] as String? ?? '',
-      albumArtist: data['album_artist'] as String?,
-      coverUrl: data['images'] as String?,
-      isrc: data['isrc'] as String?,
-      duration: ((data['duration_ms'] as int? ?? 0) / 1000).round(),
+      id: (data['spotify_id'] ?? data['id'] ?? '').toString(),
+      name: (data['name'] ?? '').toString(),
+      artistName: (data['artists'] ?? data['artist'] ?? '').toString(),
+      albumName: (data['album_name'] ?? data['album'] ?? '').toString(),
+      albumArtist: data['album_artist']?.toString(),
+      coverUrl: data['images']?.toString(),
+      isrc: data['isrc']?.toString(),
+      duration: (durationMs / 1000).round(),
       trackNumber: data['track_number'] as int?,
       discNumber: data['disc_number'] as int?,
-      releaseDate: data['release_date'] as String?,
+      releaseDate: data['release_date']?.toString(),
     );
   }
 

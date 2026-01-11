@@ -320,6 +320,10 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
     final error = ref.watch(trackProvider.select((s) => s.error));
     final hasSearchedBefore = ref.watch(settingsProvider.select((s) => s.hasSearchedBefore));
     
+    // Watch extension state to update search hint when extensions load/change
+    ref.watch(extensionProvider.select((s) => s.isInitialized));
+    ref.watch(extensionProvider.select((s) => s.extensions));
+    
     final colorScheme = Theme.of(context).colorScheme;
     final hasResults = _isTyping || tracks.isNotEmpty || (searchArtists != null && searchArtists.isNotEmpty) || isLoading;
     final screenHeight = MediaQuery.of(context).size.height;
@@ -775,9 +779,14 @@ class _HomeTabState extends ConsumerState<HomeTab> with AutomaticKeepAliveClient
   String _getSearchHint() {
     final settings = ref.read(settingsProvider);
     final searchProvider = settings.searchProvider;
+    final extState = ref.read(extensionProvider);
+    
+    // If extension system not initialized yet, show default hint
+    if (!extState.isInitialized) {
+      return 'Paste Spotify URL or search...';
+    }
     
     if (searchProvider != null && searchProvider.isNotEmpty) {
-      final extState = ref.read(extensionProvider);
       final ext = extState.extensions.where((e) => e.id == searchProvider).firstOrNull;
       // Only show extension placeholder if extension exists AND is enabled
       if (ext != null && ext.enabled) {

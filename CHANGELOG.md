@@ -8,6 +8,12 @@
   - Based on `album_type` from Spotify/Deezer metadata
   - Toggle in Settings > Download > Separate Singles Folder
   - Singles saved to `{output}/Singles/`, albums to `{output}/Albums/`
+- **Browser-like Polyfills**: New global APIs for easier library porting
+  - `fetch()` - Browser-compatible HTTP API with `json()`, `text()`, `arrayBuffer()` methods
+  - `atob()` / `btoa()` - Global Base64 encoding/decoding
+  - `TextEncoder` / `TextDecoder` - UTF-8 text encoding classes
+  - `URL` / `URLSearchParams` - URL parsing and manipulation classes
+  - Makes porting browser libraries (like `youtubei.js`) much easier
 
 ### Performance
 

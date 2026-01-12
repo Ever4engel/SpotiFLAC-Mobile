@@ -668,35 +668,55 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     state = state.copyWith(outputDir: dir);
   }
 
-  /// Build output directory based on folder organization setting
-  Future<String> _buildOutputDir(Track track, String folderOrganization) async {
+  /// Build output directory based on folder organization setting and separateSingles
+  Future<String> _buildOutputDir(Track track, String folderOrganization, {bool separateSingles = false}) async {
     String baseDir = state.outputDir;
 
-    if (folderOrganization == 'none') {
-      return baseDir;
+    // If separateSingles is enabled, use Albums/Singles structure
+    if (separateSingles) {
+      final isSingle = track.isSingle;
+      
+      if (isSingle) {
+        // Singles go to Singles folder (flat structure)
+        final singlesPath = '$baseDir${Platform.pathSeparator}Singles';
+        final dir = Directory(singlesPath);
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+          _log.d('Created Singles folder: $singlesPath');
+        }
+        return singlesPath;
+      } else {
+        // Albums go to Albums/Artist/Album structure
+        final artistName = _sanitizeFolderName(track.albumArtist ?? track.artistName);
+        final albumName = _sanitizeFolderName(track.albumName);
+        final albumPath = '$baseDir${Platform.pathSeparator}Albums${Platform.pathSeparator}$artistName${Platform.pathSeparator}$albumName';
+        final dir = Directory(albumPath);
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+          _log.d('Created Album folder: $albumPath');
+        }
+        return albumPath;
+      }
     }
 
-    // Sanitize folder names (remove invalid characters)
-    String sanitize(String name) {
-      return name
-          .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_')
-          .replaceAll(RegExp(r'\.+$'), '') // Remove trailing dots
-          .trim();
+    // Original folder organization logic (when separateSingles is disabled)
+    if (folderOrganization == 'none') {
+      return baseDir;
     }
 
     String subPath = '';
     switch (folderOrganization) {
       case 'artist':
-        final artistName = sanitize(track.albumArtist ?? track.artistName);
+        final artistName = _sanitizeFolderName(track.albumArtist ?? track.artistName);
         subPath = artistName;
         break;
       case 'album':
-        final albumName = sanitize(track.albumName);
+        final albumName = _sanitizeFolderName(track.albumName);
         subPath = albumName;
         break;
       case 'artist_album':
-        final artistName = sanitize(track.albumArtist ?? track.artistName);
-        final albumName = sanitize(track.albumName);
+        final artistName = _sanitizeFolderName(track.albumArtist ?? track.artistName);
+        final albumName = _sanitizeFolderName(track.albumName);
         subPath = '$artistName${Platform.pathSeparator}$albumName';
         break;
     }
@@ -712,6 +732,14 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
 
     return baseDir;
+  }
+
+  /// Sanitize folder names (remove invalid characters)
+  String _sanitizeFolderName(String name) {
+    return name
+        .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_')
+        .replaceAll(RegExp(r'\.+$'), '') // Remove trailing dots
+        .trim();
   }
 
   void updateSettings(AppSettings settings) {
@@ -1417,6 +1445,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       final outputDir = await _buildOutputDir(
         trackToDownload,
         settings.folderOrganization,
+        separateSingles: settings.separateSingles,
       );
 
       // Use quality override if set, otherwise use default from settings

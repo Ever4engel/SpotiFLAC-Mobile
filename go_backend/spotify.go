@@ -158,6 +158,7 @@ type TrackMetadata struct {
 	DiscNumber  int    `json:"disc_number,omitempty"`
 	ExternalURL string `json:"external_urls"`
 	ISRC        string `json:"isrc"`
+	AlbumType   string `json:"album_type,omitempty"` // album, single, ep, compilation
 }
 
 // AlbumTrackMetadata holds per-track info for album/playlist
@@ -177,6 +178,7 @@ type AlbumTrackMetadata struct {
 	ISRC        string `json:"isrc"`
 	AlbumID     string `json:"album_id,omitempty"`
 	AlbumURL    string `json:"album_url,omitempty"`
+	AlbumType   string `json:"album_type,omitempty"` // album, single, ep, compilation
 }
 
 // AlbumInfoMetadata holds album information
@@ -301,6 +303,7 @@ type albumSimplified struct {
 	Images      []image     `json:"images"`
 	ExternalURL externalURL `json:"external_urls"`
 	Artists     []artist    `json:"artists"`
+	AlbumType   string      `json:"album_type"` // album, single, compilation
 }
 
 type trackFull struct {
@@ -381,6 +384,7 @@ func (c *SpotifyMetadataClient) SearchTracks(ctx context.Context, query string, 
 			DiscNumber:  track.DiscNumber,
 			ExternalURL: track.ExternalURL.Spotify,
 			ISRC:        track.ExternalID.ISRC,
+			AlbumType:   track.Album.AlbumType,
 		})
 	}
 
@@ -448,6 +452,7 @@ func (c *SpotifyMetadataClient) SearchAll(ctx context.Context, query string, tra
 			DiscNumber:  track.DiscNumber,
 			ExternalURL: track.ExternalURL.Spotify,
 			ISRC:        track.ExternalID.ISRC,
+			AlbumType:   track.Album.AlbumType,
 		})
 	}
 

@@ -19,6 +19,7 @@ class Track {
   final String? deezerId;
   final ServiceAvailability? availability;
   final String? source; // Extension ID that provided this track (null for built-in sources)
+  final String? albumType; // album, single, ep, compilation (from metadata API)
 
   const Track({
     required this.id,
@@ -35,7 +36,11 @@ class Track {
     this.deezerId,
     this.availability,
     this.source,
+    this.albumType,
   });
+
+  /// Check if this track is a single (based on album_type metadata)
+  bool get isSingle => albumType == 'single' || albumType == 'ep';
 
   factory Track.fromJson(Map<String, dynamic> json) => _$TrackFromJson(json);
   Map<String, dynamic> toJson() => _$TrackToJson(this);

@@ -146,6 +146,7 @@ type deezerAlbumFull struct {
 	CoverXL      string         `json:"cover_xl"`
 	ReleaseDate  string         `json:"release_date"`
 	NbTracks     int            `json:"nb_tracks"`
+	RecordType   string         `json:"record_type"` // album, single, ep, compile
 	Artist       deezerArtist   `json:"artist"`
 	Contributors []deezerArtist `json:"contributors"`
 	Tracks       struct {
@@ -326,6 +327,12 @@ func (c *DeezerClient) GetAlbum(ctx context.Context, albumID string) (*AlbumResp
 	isrcMap := c.fetchISRCsParallel(ctx, album.Tracks.Data)
 
 	tracks := make([]AlbumTrackMetadata, 0, len(album.Tracks.Data))
+	// Normalize record_type (Deezer uses "compile" instead of "compilation")
+	albumType := album.RecordType
+	if albumType == "compile" {
+		albumType = "compilation"
+	}
+
 	for _, track := range album.Tracks.Data {
 		trackIDStr := fmt.Sprintf("%d", track.ID)
 		isrc := isrcMap[trackIDStr]
@@ -345,6 +352,7 @@ func (c *DeezerClient) GetAlbum(ctx context.Context, albumID string) (*AlbumResp
 			ExternalURL: track.Link,
 			ISRC:        isrc,
 			AlbumID:     fmt.Sprintf("deezer:%d", album.ID),
+			AlbumType:   albumType,
 		})
 	}
 

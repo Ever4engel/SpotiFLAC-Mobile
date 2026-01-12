@@ -185,19 +185,31 @@ class DownloadSettingsPage extends ConsumerWidget {
                         : settings.downloadDirectory,
                     onTap: () => _pickDirectory(context, ref),
                   ),
-                  SettingsItem(
-                    icon: Icons.create_new_folder_outlined,
-                    title: 'Folder Organization',
-                    subtitle: _getFolderOrganizationLabel(
-                      settings.folderOrganization,
-                    ),
-                    onTap: () => _showFolderOrganizationPicker(
-                      context,
-                      ref,
-                      settings.folderOrganization,
-                    ),
-                    showDivider: false,
+                  SettingsSwitchItem(
+                    icon: Icons.library_music_outlined,
+                    title: 'Separate Singles Folder',
+                    subtitle: settings.separateSingles
+                        ? 'Albums/ and Singles/ folders'
+                        : 'All files in same structure',
+                    value: settings.separateSingles,
+                    onChanged: (value) => ref
+                        .read(settingsProvider.notifier)
+                        .setSeparateSingles(value),
                   ),
+                  if (!settings.separateSingles)
+                    SettingsItem(
+                      icon: Icons.create_new_folder_outlined,
+                      title: 'Folder Organization',
+                      subtitle: _getFolderOrganizationLabel(
+                        settings.folderOrganization,
+                      ),
+                      onTap: () => _showFolderOrganizationPicker(
+                        context,
+                        ref,
+                        settings.folderOrganization,
+                      ),
+                      showDivider: false,
+                    ),
                 ],
               ),
             ),

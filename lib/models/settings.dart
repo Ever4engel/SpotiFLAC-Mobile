@@ -27,6 +27,7 @@ class AppSettings {
   final bool enableLogging; // Enable detailed logging for debugging
   final bool useExtensionProviders; // Use extension providers for downloads when available
   final String? searchProvider; // null/empty = default (Deezer/Spotify), otherwise extension ID
+  final bool separateSingles; // Separate singles/EPs into their own folder
 
   const AppSettings({
     this.defaultService = 'tidal',
@@ -52,6 +53,7 @@ class AppSettings {
     this.enableLogging = false, // Default: disabled for performance
     this.useExtensionProviders = true, // Default: use extensions when available
     this.searchProvider, // Default: null (use Deezer/Spotify)
+    this.separateSingles = false, // Default: disabled
   });
 
   AppSettings copyWith({
@@ -78,6 +80,7 @@ class AppSettings {
     bool? enableLogging,
     bool? useExtensionProviders,
     String? searchProvider,
+    bool? separateSingles,
   }) {
     return AppSettings(
       defaultService: defaultService ?? this.defaultService,
@@ -103,6 +106,7 @@ class AppSettings {
       enableLogging: enableLogging ?? this.enableLogging,
       useExtensionProviders: useExtensionProviders ?? this.useExtensionProviders,
       searchProvider: searchProvider ?? this.searchProvider,
+      separateSingles: separateSingles ?? this.separateSingles,
     );
   }
 

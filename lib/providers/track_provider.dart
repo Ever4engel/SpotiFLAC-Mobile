@@ -466,6 +466,7 @@ class TrackNotifier extends Notifier<TrackState> {
       discNumber: data['disc_number'] as int?,
       releaseDate: data['release_date']?.toString(),
       source: source ?? data['source']?.toString() ?? data['provider_id']?.toString(),
+      albumType: data['album_type']?.toString(),
     );
   }
 

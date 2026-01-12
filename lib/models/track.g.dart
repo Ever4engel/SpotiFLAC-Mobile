@@ -25,6 +25,7 @@ Track _$TrackFromJson(Map<String, dynamic> json) => Track(
           json['availability'] as Map<String, dynamic>,
         ),
   source: json['source'] as String?,
+  albumType: json['albumType'] as String?,
 );
 
 Map<String, dynamic> _$TrackToJson(Track instance) => <String, dynamic>{
@@ -42,6 +43,7 @@ Map<String, dynamic> _$TrackToJson(Track instance) => <String, dynamic>{
   'deezerId': instance.deezerId,
   'availability': instance.availability,
   'source': instance.source,
+  'albumType': instance.albumType,
 };
 
 ServiceAvailability _$ServiceAvailabilityFromJson(Map<String, dynamic> json) =>

@@ -45,7 +45,7 @@
 - **Spotify Web Extension** (example): New extension for Spotify metadata via web API
   - Supports personalized playlists (Daily Mix, Discover Weekly, Release Radar, etc.)
   - Search, album, playlist, track, and artist fetching
-  - Located in `docs/extensions_example/spotify-internal/`
+  - Available in Extension Store (3.0.0-alpha.4)
 
 ---
 

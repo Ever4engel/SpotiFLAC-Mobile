@@ -640,20 +640,135 @@ type TidalDownloadInfo struct {
 }
 
 // tidalAPIResult holds the result from a parallel API request
-// Kept for potential future use with _getDownloadURLParallel
-// type tidalAPIResult struct {
-// 	apiURL   string
-// 	info     TidalDownloadInfo
-// 	err      error
-// 	duration time.Duration
-// }
+type tidalAPIResult struct {
+	apiURL   string
+	info     TidalDownloadInfo
+	err      error
+	duration time.Duration
+}
 
-// _getDownloadURLParallel requests download URL from all APIs in parallel
+// getDownloadURLParallel requests download URL from all APIs in parallel
 // Returns the first successful result (supports both v1 and v2 API formats)
-// Kept for potential future use - currently using sequential approach
-// func _getDownloadURLParallel(apis []string, trackID int64, quality string) (string, TidalDownloadInfo, error) {
-// 	... implementation commented out ...
-// }
+// "Siapa cepat dia dapat" - first success wins
+func getDownloadURLParallel(apis []string, trackID int64, quality string) (string, TidalDownloadInfo, error) {
+	if len(apis) == 0 {
+		return "", TidalDownloadInfo{}, fmt.Errorf("no APIs available")
+	}
+
+	GoLog("[Tidal] Requesting download URL from %d APIs in parallel...\n", len(apis))
+
+	resultChan := make(chan tidalAPIResult, len(apis))
+	startTime := time.Now()
+
+	// Start all requests in parallel
+	for _, apiURL := range apis {
+		go func(api string) {
+			reqStart := time.Now()
+
+			// Create client with timeout for parallel requests
+			client := &http.Client{
+				Timeout: 15 * time.Second,
+			}
+
+			reqURL := fmt.Sprintf("%s/track/?id=%d&quality=%s", api, trackID, quality)
+
+			req, err := http.NewRequest("GET", reqURL, nil)
+			if err != nil {
+				resultChan <- tidalAPIResult{apiURL: api, err: err, duration: time.Since(reqStart)}
+				return
+			}
+
+			resp, err := client.Do(req)
+			if err != nil {
+				resultChan <- tidalAPIResult{apiURL: api, err: err, duration: time.Since(reqStart)}
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != 200 {
+				resultChan <- tidalAPIResult{apiURL: api, err: fmt.Errorf("HTTP %d", resp.StatusCode), duration: time.Since(reqStart)}
+				return
+			}
+
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				resultChan <- tidalAPIResult{apiURL: api, err: err, duration: time.Since(reqStart)}
+				return
+			}
+
+			// Try v2 format first (object with manifest)
+			var v2Response TidalAPIResponseV2
+			if err := json.Unmarshal(body, &v2Response); err == nil && v2Response.Data.Manifest != "" {
+				// IMPORTANT: Reject PREVIEW responses - we need FULL tracks
+				if v2Response.Data.AssetPresentation == "PREVIEW" {
+					resultChan <- tidalAPIResult{apiURL: api, err: fmt.Errorf("returned PREVIEW instead of FULL"), duration: time.Since(reqStart)}
+					return
+				}
+
+				info := TidalDownloadInfo{
+					URL:        "MANIFEST:" + v2Response.Data.Manifest,
+					BitDepth:   v2Response.Data.BitDepth,
+					SampleRate: v2Response.Data.SampleRate,
+				}
+				resultChan <- tidalAPIResult{apiURL: api, info: info, err: nil, duration: time.Since(reqStart)}
+				return
+			}
+
+			// Fallback to v1 format (array with OriginalTrackUrl)
+			var v1Responses []struct {
+				OriginalTrackURL string `json:"OriginalTrackUrl"`
+			}
+			if err := json.Unmarshal(body, &v1Responses); err == nil {
+				for _, item := range v1Responses {
+					if item.OriginalTrackURL != "" {
+						info := TidalDownloadInfo{
+							URL:        item.OriginalTrackURL,
+							BitDepth:   16,
+							SampleRate: 44100,
+						}
+						resultChan <- tidalAPIResult{apiURL: api, info: info, err: nil, duration: time.Since(reqStart)}
+						return
+					}
+				}
+			}
+
+			resultChan <- tidalAPIResult{apiURL: api, err: fmt.Errorf("no download URL or manifest in response"), duration: time.Since(reqStart)}
+		}(apiURL)
+	}
+
+	// Collect results - return first success
+	var errors []string
+	var firstSuccess *tidalAPIResult
+
+	for i := 0; i < len(apis); i++ {
+		result := <-resultChan
+		if result.err == nil && firstSuccess == nil {
+			// First success - use this one
+			firstSuccess = &result
+			GoLog("[Tidal] [Parallel] ✓ Got response from %s (%d-bit/%dHz) in %v\n",
+				result.apiURL, result.info.BitDepth, result.info.SampleRate, result.duration)
+
+			// Don't return immediately - drain remaining results to avoid goroutine leaks
+			go func(remaining int) {
+				for j := 0; j < remaining; j++ {
+					<-resultChan
+				}
+			}(len(apis) - i - 1)
+
+			GoLog("[Tidal] [Parallel] Total time: %v (first success)\n", time.Since(startTime))
+			return firstSuccess.apiURL, firstSuccess.info, nil
+		} else if result.err != nil {
+			errMsg := result.err.Error()
+			if len(errMsg) > 50 {
+				errMsg = errMsg[:50] + "..."
+			}
+			errors = append(errors, fmt.Sprintf("%s: %s", result.apiURL, errMsg))
+		}
+	}
+
+	GoLog("[Tidal] [Parallel] All %d APIs failed in %v\n", len(apis), time.Since(startTime))
+	return "", TidalDownloadInfo{}, fmt.Errorf("all %d Tidal APIs failed. Errors: %v", len(apis), errors)
+}
 
 // getDownloadURLSequential requests download URL from APIs sequentially (fallback)
 // Returns the first successful result (supports both v1 and v2 API formats)
@@ -744,14 +859,16 @@ func getDownloadURLSequential(apis []string, trackID int64, quality string) (str
 	return "", TidalDownloadInfo{}, fmt.Errorf("all %d Tidal APIs failed. Errors: %v", len(apis), errors)
 }
 
-// GetDownloadURL gets download URL for a track - tries APIs sequentially
+// GetDownloadURL gets download URL for a track - tries ALL APIs in parallel
+// "Siapa cepat dia dapat" - first successful response wins
 func (t *TidalDownloader) GetDownloadURL(trackID int64, quality string) (TidalDownloadInfo, error) {
 	apis := t.GetAvailableAPIs()
 	if len(apis) == 0 {
 		return TidalDownloadInfo{}, fmt.Errorf("no API URL configured")
 	}
 
-	_, info, err := getDownloadURLSequential(apis, trackID, quality)
+	// Use parallel approach - request from all APIs simultaneously
+	_, info, err := getDownloadURLParallel(apis, trackID, quality)
 	if err != nil {
 		return TidalDownloadInfo{}, fmt.Errorf("failed to get download URL: %w", err)
 	}

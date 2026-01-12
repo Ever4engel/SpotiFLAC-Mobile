@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 // QobuzDownloader handles Qobuz downloads
@@ -635,6 +636,125 @@ func (q *QobuzDownloader) SearchTrackByMetadataWithDuration(trackName, artistNam
 	return nil, fmt.Errorf("no matching track found for: %s - %s", artistName, trackName)
 }
 
+// qobuzAPIResult holds the result from a parallel API request
+type qobuzAPIResult struct {
+	apiURL      string
+	downloadURL string
+	err         error
+	duration    time.Duration
+}
+
+// getQobuzDownloadURLParallel requests download URL from all APIs in parallel
+// "Siapa cepat dia dapat" - first successful response wins
+func getQobuzDownloadURLParallel(apis []string, trackID int64, quality string) (string, string, error) {
+	if len(apis) == 0 {
+		return "", "", fmt.Errorf("no APIs available")
+	}
+
+	GoLog("[Qobuz] Requesting download URL from %d APIs in parallel...\n", len(apis))
+
+	resultChan := make(chan qobuzAPIResult, len(apis))
+	startTime := time.Now()
+
+	// Start all requests in parallel
+	for _, apiURL := range apis {
+		go func(api string) {
+			reqStart := time.Now()
+
+			client := &http.Client{
+				Timeout: 15 * time.Second,
+			}
+
+			reqURL := fmt.Sprintf("%s%d&quality=%s", api, trackID, quality)
+
+			req, err := http.NewRequest("GET", reqURL, nil)
+			if err != nil {
+				resultChan <- qobuzAPIResult{apiURL: api, err: err, duration: time.Since(reqStart)}
+				return
+			}
+
+			resp, err := client.Do(req)
+			if err != nil {
+				resultChan <- qobuzAPIResult{apiURL: api, err: err, duration: time.Since(reqStart)}
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != 200 {
+				resultChan <- qobuzAPIResult{apiURL: api, err: fmt.Errorf("HTTP %d", resp.StatusCode), duration: time.Since(reqStart)}
+				return
+			}
+
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				resultChan <- qobuzAPIResult{apiURL: api, err: err, duration: time.Since(reqStart)}
+				return
+			}
+
+			// Check if response is HTML (error page)
+			if len(body) > 0 && body[0] == '<' {
+				resultChan <- qobuzAPIResult{apiURL: api, err: fmt.Errorf("received HTML instead of JSON"), duration: time.Since(reqStart)}
+				return
+			}
+
+			// Check for error in JSON response
+			var errorResp struct {
+				Error string `json:"error"`
+			}
+			if json.Unmarshal(body, &errorResp) == nil && errorResp.Error != "" {
+				resultChan <- qobuzAPIResult{apiURL: api, err: fmt.Errorf(errorResp.Error), duration: time.Since(reqStart)}
+				return
+			}
+
+			var result struct {
+				URL string `json:"url"`
+			}
+			if err := json.Unmarshal(body, &result); err != nil {
+				resultChan <- qobuzAPIResult{apiURL: api, err: fmt.Errorf("invalid JSON: %v", err), duration: time.Since(reqStart)}
+				return
+			}
+
+			if result.URL != "" {
+				resultChan <- qobuzAPIResult{apiURL: api, downloadURL: result.URL, err: nil, duration: time.Since(reqStart)}
+				return
+			}
+
+			resultChan <- qobuzAPIResult{apiURL: api, err: fmt.Errorf("no download URL in response"), duration: time.Since(reqStart)}
+		}(apiURL)
+	}
+
+	// Collect results - return first success
+	var errors []string
+	var firstSuccess *qobuzAPIResult
+
+	for i := 0; i < len(apis); i++ {
+		result := <-resultChan
+		if result.err == nil && firstSuccess == nil {
+			firstSuccess = &result
+			GoLog("[Qobuz] [Parallel] ✓ Got response from %s in %v\n", result.apiURL, result.duration)
+
+			// Drain remaining results to avoid goroutine leaks
+			go func(remaining int) {
+				for j := 0; j < remaining; j++ {
+					<-resultChan
+				}
+			}(len(apis) - i - 1)
+
+			GoLog("[Qobuz] [Parallel] Total time: %v (first success)\n", time.Since(startTime))
+			return firstSuccess.apiURL, firstSuccess.downloadURL, nil
+		} else if result.err != nil {
+			errMsg := result.err.Error()
+			if len(errMsg) > 50 {
+				errMsg = errMsg[:50] + "..."
+			}
+			errors = append(errors, fmt.Sprintf("%s: %s", result.apiURL, errMsg))
+		}
+	}
+
+	GoLog("[Qobuz] [Parallel] All %d APIs failed in %v\n", len(apis), time.Since(startTime))
+	return "", "", fmt.Errorf("all %d Qobuz APIs failed. Errors: %v", len(apis), errors)
+}
+
 // getQobuzDownloadURLSequential requests download URL from APIs sequentially
 // Uses same URL format as PC version: /api/stream?trackId={id}&quality={quality}
 func getQobuzDownloadURLSequential(apis []string, trackID int64, quality string) (string, string, error) {
@@ -706,14 +826,16 @@ func getQobuzDownloadURLSequential(apis []string, trackID int64, quality string)
 	return "", "", fmt.Errorf("all %d Qobuz APIs failed. Errors: %v", len(apis), errors)
 }
 
-// GetDownloadURL gets download URL for a track - tries APIs sequentially
+// GetDownloadURL gets download URL for a track - tries ALL APIs in parallel
+// "Siapa cepat dia dapat" - first successful response wins
 func (q *QobuzDownloader) GetDownloadURL(trackID int64, quality string) (string, error) {
 	apis := q.GetAvailableAPIs()
 	if len(apis) == 0 {
 		return "", fmt.Errorf("no Qobuz API available")
 	}
 
-	_, downloadURL, err := getQobuzDownloadURLSequential(apis, trackID, quality)
+	// Use parallel approach - request from all APIs simultaneously
+	_, downloadURL, err := getQobuzDownloadURLParallel(apis, trackID, quality)
 	if err != nil {
 		return "", err
 	}

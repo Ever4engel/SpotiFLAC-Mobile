@@ -32,6 +32,16 @@
   - Added `sameWordsUnordered` check to both Tidal and Qobuz artist matching
   - Handles Japanese name order (family name first) vs Western name order (given name first)
 
+- **Multi-Artist Matching**: Fixed artist mismatch for collaboration tracks
+  - "RADWIMPS feat. Toko Miura" now matches when Qobuz/Tidal only shows "Toko Miura"
+  - Split artists by separators (`, `, ` feat. `, ` ft. `, ` & `, ` and `, ` x `)
+  - Match if ANY expected artist matches ANY found artist
+
+- **Cover Download Logging**: Improved cover download logs for debugging
+  - Shows original URL, upgrade steps, and final URL
+  - Displays estimated resolution based on file size
+  - Logs now appear in Settings > Logs via GoLog
+
 ---
 
 ## [3.0.0-beta.1] - 2026-01-13

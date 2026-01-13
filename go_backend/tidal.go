@@ -1253,30 +1253,27 @@ func artistsMatch(spotifyArtist, tidalArtist string) bool {
 		return true
 	}
 
-	// Check first artist (before comma or feat)
-	spotifyFirst := strings.Split(normSpotify, ",")[0]
-	spotifyFirst = strings.Split(spotifyFirst, " feat")[0]
-	spotifyFirst = strings.Split(spotifyFirst, " ft.")[0]
-	spotifyFirst = strings.TrimSpace(spotifyFirst)
+	// Split artists by common separators (comma, feat, ft., &, and)
+	// e.g., "RADWIMPS, Toko Miura" or "RADWIMPS feat. Toko Miura"
+	spotifyArtists := splitArtists(normSpotify)
+	tidalArtists := splitArtists(normTidal)
 
-	tidalFirst := strings.Split(normTidal, ",")[0]
-	tidalFirst = strings.Split(tidalFirst, " feat")[0]
-	tidalFirst = strings.Split(tidalFirst, " ft.")[0]
-	tidalFirst = strings.TrimSpace(tidalFirst)
-
-	if spotifyFirst == tidalFirst {
-		return true
-	}
-
-	// Check if first artist is contained in the other
-	if strings.Contains(spotifyFirst, tidalFirst) || strings.Contains(tidalFirst, spotifyFirst) {
-		return true
-	}
-
-	// Check if same words in different order (e.g., "Sawano Hiroyuki" vs "Hiroyuki Sawano")
-	if sameWordsUnordered(spotifyFirst, tidalFirst) {
-		GoLog("[Tidal] Artist names have same words in different order, assuming match: '%s' vs '%s'\n", spotifyArtist, tidalArtist)
-		return true
+	// Check if ANY expected artist matches ANY found artist
+	for _, exp := range spotifyArtists {
+		for _, fnd := range tidalArtists {
+			if exp == fnd {
+				return true
+			}
+			// Also check contains for partial matches
+			if strings.Contains(exp, fnd) || strings.Contains(fnd, exp) {
+				return true
+			}
+			// Check same words different order
+			if sameWordsUnordered(exp, fnd) {
+				GoLog("[Tidal] Artist names have same words in different order: '%s' vs '%s'\n", exp, fnd)
+				return true
+			}
+		}
 	}
 
 	// If scripts are TRULY different (Latin vs CJK/Arabic/Cyrillic), assume match (transliteration)
@@ -1290,6 +1287,30 @@ func artistsMatch(spotifyArtist, tidalArtist string) bool {
 	}
 
 	return false
+}
+
+// splitArtists splits artist string by common separators
+func splitArtists(artists string) []string {
+	// Replace common separators with a standard one
+	normalized := artists
+	normalized = strings.ReplaceAll(normalized, " feat. ", "|")
+	normalized = strings.ReplaceAll(normalized, " feat ", "|")
+	normalized = strings.ReplaceAll(normalized, " ft. ", "|")
+	normalized = strings.ReplaceAll(normalized, " ft ", "|")
+	normalized = strings.ReplaceAll(normalized, " & ", "|")
+	normalized = strings.ReplaceAll(normalized, " and ", "|")
+	normalized = strings.ReplaceAll(normalized, ", ", "|")
+	normalized = strings.ReplaceAll(normalized, " x ", "|")
+
+	parts := strings.Split(normalized, "|")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }
 
 // sameWordsUnordered checks if two strings have the same words regardless of order

@@ -64,30 +64,27 @@ func qobuzArtistsMatch(expectedArtist, foundArtist string) bool {
 		return true
 	}
 
-	// Check first artist (before comma or feat)
-	expectedFirst := strings.Split(normExpected, ",")[0]
-	expectedFirst = strings.Split(expectedFirst, " feat")[0]
-	expectedFirst = strings.Split(expectedFirst, " ft.")[0]
-	expectedFirst = strings.TrimSpace(expectedFirst)
+	// Split expected artists by common separators (comma, feat, ft., &, and)
+	// e.g., "RADWIMPS, Toko Miura" or "RADWIMPS feat. Toko Miura"
+	expectedArtists := qobuzSplitArtists(normExpected)
+	foundArtists := qobuzSplitArtists(normFound)
 
-	foundFirst := strings.Split(normFound, ",")[0]
-	foundFirst = strings.Split(foundFirst, " feat")[0]
-	foundFirst = strings.Split(foundFirst, " ft.")[0]
-	foundFirst = strings.TrimSpace(foundFirst)
-
-	if expectedFirst == foundFirst {
-		return true
-	}
-
-	// Check if first artist is contained in the other
-	if strings.Contains(expectedFirst, foundFirst) || strings.Contains(foundFirst, expectedFirst) {
-		return true
-	}
-
-	// Check if same words in different order (e.g., "Sawano Hiroyuki" vs "Hiroyuki Sawano")
-	if qobuzSameWordsUnordered(expectedFirst, foundFirst) {
-		GoLog("[Qobuz] Artist names have same words in different order, assuming match: '%s' vs '%s'\n", expectedArtist, foundArtist)
-		return true
+	// Check if ANY expected artist matches ANY found artist
+	for _, exp := range expectedArtists {
+		for _, fnd := range foundArtists {
+			if exp == fnd {
+				return true
+			}
+			// Also check contains for partial matches
+			if strings.Contains(exp, fnd) || strings.Contains(fnd, exp) {
+				return true
+			}
+			// Check same words different order
+			if qobuzSameWordsUnordered(exp, fnd) {
+				GoLog("[Qobuz] Artist names have same words in different order: '%s' vs '%s'\n", exp, fnd)
+				return true
+			}
+		}
 	}
 
 	// If scripts are TRULY different (Latin vs CJK/Arabic/Cyrillic), assume match (transliteration)
@@ -100,6 +97,30 @@ func qobuzArtistsMatch(expectedArtist, foundArtist string) bool {
 	}
 
 	return false
+}
+
+// qobuzSplitArtists splits artist string by common separators
+func qobuzSplitArtists(artists string) []string {
+	// Replace common separators with a standard one
+	normalized := artists
+	normalized = strings.ReplaceAll(normalized, " feat. ", "|")
+	normalized = strings.ReplaceAll(normalized, " feat ", "|")
+	normalized = strings.ReplaceAll(normalized, " ft. ", "|")
+	normalized = strings.ReplaceAll(normalized, " ft ", "|")
+	normalized = strings.ReplaceAll(normalized, " & ", "|")
+	normalized = strings.ReplaceAll(normalized, " and ", "|")
+	normalized = strings.ReplaceAll(normalized, ", ", "|")
+	normalized = strings.ReplaceAll(normalized, " x ", "|")
+
+	parts := strings.Split(normalized, "|")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }
 
 // qobuzSameWordsUnordered checks if two strings have the same words regardless of order

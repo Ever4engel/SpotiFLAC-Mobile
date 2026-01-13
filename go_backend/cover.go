@@ -30,12 +30,12 @@ func downloadCoverToMemory(coverURL string, maxQuality bool) ([]byte, error) {
 		return nil, fmt.Errorf("no cover URL provided")
 	}
 
-	fmt.Printf("[Cover] Downloading cover from: %s\n", coverURL)
+	GoLog("[Cover] Original URL: %s", coverURL)
 
 	// First upgrade small (300) to medium (640) - always do this
 	downloadURL := convertSmallToMedium(coverURL)
 	if downloadURL != coverURL {
-		fmt.Printf("[Cover] Upgraded 300x300 to 640x640: %s\n", downloadURL)
+		GoLog("[Cover] Upgraded 300x300 → 640x640")
 	}
 
 	// Then upgrade to max quality if requested
@@ -43,9 +43,13 @@ func downloadCoverToMemory(coverURL string, maxQuality bool) ([]byte, error) {
 		maxURL := upgradeToMaxQuality(downloadURL)
 		if maxURL != downloadURL {
 			downloadURL = maxURL
-			fmt.Printf("[Cover] Upgraded to max quality URL: %s\n", downloadURL)
+			GoLog("[Cover] Upgraded to max resolution (~2000x2000)")
+		} else {
+			GoLog("[Cover] Max resolution not available, using 640x640")
 		}
 	}
+
+	GoLog("[Cover] Final URL: %s", downloadURL)
 
 	client := NewHTTPClientWithTimeout(DefaultTimeout)
 
@@ -70,7 +74,19 @@ func downloadCoverToMemory(coverURL string, maxQuality bool) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read cover data: %w", err)
 	}
 
-	fmt.Printf("[Cover] Downloaded %d bytes\n", len(data))
+	// Calculate approximate resolution from file size
+	// JPEG ~2000x2000 is typically 300-600KB, 640x640 is ~50-100KB
+	sizeKB := len(data) / 1024
+	var resolution string
+	if sizeKB > 200 {
+		resolution = "~2000x2000 (hi-res)"
+	} else if sizeKB > 50 {
+		resolution = "~640x640"
+	} else {
+		resolution = "~300x300"
+	}
+	GoLog("[Cover] Downloaded %d KB (%s)", sizeKB, resolution)
+
 	return data, nil
 }
 

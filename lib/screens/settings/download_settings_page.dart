@@ -573,74 +573,80 @@ class DownloadSettingsPage extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: colorScheme.surfaceContainerHigh,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-              child: Text(
-                'Folder Organization',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-              child: Text(
-                'Organize downloaded files into folders',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                child: Text(
+                  'Folder Organization',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
-            ),
-            _FolderOption(
-              title: 'None',
-              subtitle: 'All files in download folder',
-              example: 'SpotiFLAC/Track.flac',
-              isSelected: current == 'none',
-              onTap: () {
-                ref.read(settingsProvider.notifier).setFolderOrganization('none');
-                Navigator.pop(context);
-              },
-            ),
-            _FolderOption(
-              title: 'By Artist',
-              subtitle: 'Separate folder for each artist',
-              example: 'SpotiFLAC/Artist Name/Track.flac',
-              isSelected: current == 'artist',
-              onTap: () {
-                ref.read(settingsProvider.notifier).setFolderOrganization('artist');
-                Navigator.pop(context);
-              },
-            ),
-            _FolderOption(
-              title: 'By Album',
-              subtitle: 'Separate folder for each album',
-              example: 'SpotiFLAC/Album Name/Track.flac',
-              isSelected: current == 'album',
-              onTap: () {
-                ref.read(settingsProvider.notifier).setFolderOrganization('album');
-                Navigator.pop(context);
-              },
-            ),
-            _FolderOption(
-              title: 'By Artist & Album',
-              subtitle: 'Nested folders for artist and album',
-              example: 'SpotiFLAC/Artist/Album/Track.flac',
-              isSelected: current == 'artist_album',
-              onTap: () {
-                ref.read(settingsProvider.notifier).setFolderOrganization('artist_album');
-                Navigator.pop(context);
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                child: Text(
+                  'Organize downloaded files into folders',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              _FolderOption(
+                title: 'None',
+                subtitle: 'All files in download folder',
+                example: 'SpotiFLAC/Track.flac',
+                isSelected: current == 'none',
+                onTap: () {
+                  ref.read(settingsProvider.notifier).setFolderOrganization('none');
+                  Navigator.pop(context);
+                },
+              ),
+              _FolderOption(
+                title: 'By Artist',
+                subtitle: 'Separate folder for each artist',
+                example: 'SpotiFLAC/Artist Name/Track.flac',
+                isSelected: current == 'artist',
+                onTap: () {
+                  ref.read(settingsProvider.notifier).setFolderOrganization('artist');
+                  Navigator.pop(context);
+                },
+              ),
+              _FolderOption(
+                title: 'By Album',
+                subtitle: 'Separate folder for each album',
+                example: 'SpotiFLAC/Album Name/Track.flac',
+                isSelected: current == 'album',
+                onTap: () {
+                  ref.read(settingsProvider.notifier).setFolderOrganization('album');
+                  Navigator.pop(context);
+                },
+              ),
+              _FolderOption(
+                title: 'By Artist & Album',
+                subtitle: 'Nested folders for artist and album',
+                example: 'SpotiFLAC/Artist/Album/Track.flac',
+                isSelected: current == 'artist_album',
+                onTap: () {
+                  ref.read(settingsProvider.notifier).setFolderOrganization('artist_album');
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );

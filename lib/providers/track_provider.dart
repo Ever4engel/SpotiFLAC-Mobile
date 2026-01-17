@@ -142,14 +142,11 @@ class TrackNotifier extends Notifier<TrackState> {
   bool _isRequestValid(int requestId) => requestId == _currentRequestId;
 
   Future<void> fetchFromUrl(String url, {bool useDeezerFallback = true}) async {
-    // Increment request ID to cancel any pending requests
     final requestId = ++_currentRequestId;
 
-    // Preserve hasSearchText during fetch
     state = TrackState(isLoading: true, hasSearchText: state.hasSearchText);
 
     try {
-      // First, check if any extension can handle this URL
       final extensionHandler = await PlatformBridge.findURLHandler(url);
       if (extensionHandler != null) {
         _log.i('Found extension URL handler: $extensionHandler for URL: $url');
@@ -188,7 +185,6 @@ class TrackNotifier extends Notifier<TrackState> {
             final albumsList = artistData['albums'] as List<dynamic>? ?? [];
             final albums = albumsList.map((a) => _parseArtistAlbum(a as Map<String, dynamic>)).toList();
             
-            // Parse top tracks if available
             final topTracksList = artistData['top_tracks'] as List<dynamic>? ?? [];
             final topTracks = topTracksList.map((t) => _parseSearchTrack(t as Map<String, dynamic>, source: extensionId)).toList();
             
@@ -209,13 +205,11 @@ class TrackNotifier extends Notifier<TrackState> {
         }
       }
       
-      // No extension handler found, try Spotify URL parsing
       final parsed = await PlatformBridge.parseSpotifyUrl(url);
       if (!_isRequestValid(requestId)) return; // Request cancelled
       
       final type = parsed['type'] as String;
 
-      // Use the new fallback-enabled method
       Map<String, dynamic> metadata;
       
       try {
@@ -225,7 +219,6 @@ class TrackNotifier extends Notifier<TrackState> {
         // ignore: avoid_print
         print('[FetchURL] Metadata fetch success');
       } catch (e) {
-        // If fallback also fails, show error
         // ignore: avoid_print
         print('[FetchURL] Metadata fetch failed: $e');
         rethrow;
@@ -252,7 +245,6 @@ class TrackNotifier extends Notifier<TrackState> {
           albumName: albumInfo['name'] as String?,
           coverUrl: albumInfo['images'] as String?,
         );
-        // Pre-warm cache for album tracks in background
         _preWarmCacheForTracks(tracks);
       } else if (type == 'playlist') {
         final playlistInfo = metadata['playlist_info'] as Map<String, dynamic>;
@@ -281,8 +273,7 @@ class TrackNotifier extends Notifier<TrackState> {
         );
       }
     } catch (e) {
-      if (!_isRequestValid(requestId)) return; // Request cancelled
-      // Preserve hasSearchText on error so user stays on search screen
+      if (!_isRequestValid(requestId)) return;
       state = TrackState(isLoading: false, error: e.toString(), hasSearchText: state.hasSearchText);
     }
   }
@@ -295,7 +286,6 @@ class TrackNotifier extends Notifier<TrackState> {
     state = TrackState(isLoading: true, hasSearchText: state.hasSearchText);
 
     try {
-      // Check if extension providers should be used for search
       final settings = ref.read(settingsProvider);
       final extensionState = ref.read(extensionProvider);
       final hasActiveMetadataExtensions = extensionState.extensions.any(
@@ -308,7 +298,6 @@ class TrackNotifier extends Notifier<TrackState> {
           searchProvider != null &&
           searchProvider.isNotEmpty;
 
-      // Use Deezer or Spotify based on settings
       final source = metadataSource ?? 'deezer';
       
       _log.i(
@@ -318,14 +307,12 @@ class TrackNotifier extends Notifier<TrackState> {
       Map<String, dynamic> results;
       List<Track> extensionTracks = [];
       
-      // Try extension providers first if enabled
       if (useExtensions) {
         try {
           _log.d('Calling extension search API...');
           final extResults = await PlatformBridge.searchTracksWithExtensions(query, limit: 20);
           _log.i('Extensions returned ${extResults.length} tracks');
           
-          // Parse extension results
           for (final t in extResults) {
             try {
               extensionTracks.add(_parseSearchTrack(t));
@@ -338,7 +325,6 @@ class TrackNotifier extends Notifier<TrackState> {
         }
       }
       
-      // Also search with built-in providers
       if (source == 'deezer') {
         _log.d('Calling Deezer search API...');
         results = await PlatformBridge.searchDeezerAll(query, trackLimit: 20, artistLimit: 5);
@@ -365,7 +351,6 @@ class TrackNotifier extends Notifier<TrackState> {
       // Add extension tracks first (they have priority)
       tracks.addAll(extensionTracks);
       
-      // Add built-in provider tracks, avoiding duplicates by ISRC
       final existingIsrcs = extensionTracks
           .where((t) => t.isrc != null && t.isrc!.isNotEmpty)
           .map((t) => t.isrc!)
@@ -376,7 +361,6 @@ class TrackNotifier extends Notifier<TrackState> {
         try {
           if (t is Map<String, dynamic>) {
             final track = _parseSearchTrack(t);
-            // Skip if we already have this track from extensions
             if (track.isrc != null && existingIsrcs.contains(track.isrc)) {
               continue;
             }
@@ -389,7 +373,6 @@ class TrackNotifier extends Notifier<TrackState> {
         }
       }
       
-      // Parse artists with error handling per item
       final artists = <SearchArtist>[];
       for (int i = 0; i < artistList.length; i++) {
         final a = artistList[i];
@@ -439,7 +422,6 @@ class TrackNotifier extends Notifier<TrackState> {
       
       _log.i('Custom search returned ${results.length} tracks');
       
-      // Parse tracks with error handling per item, setting source to extension ID
       final tracks = <Track>[];
       for (int i = 0; i < results.length; i++) {
         final t = results[i];
@@ -563,7 +545,6 @@ class TrackNotifier extends Notifier<TrackState> {
       durationMs = durationValue.toInt();
     }
     
-    // Get item_type - can be 'track', 'album', or 'playlist'
     final itemType = data['item_type']?.toString();
     
     return Track(
@@ -620,13 +601,10 @@ class TrackNotifier extends Notifier<TrackState> {
       'track_name': t.name,
       'artist_name': t.artistName,
       'spotify_id': t.id, // Include Spotify ID for Amazon lookup
-      'service': 'tidal', // Default to tidal for pre-warming
+      'service': 'tidal',
     }).toList();
 
-    // Fire and forget - runs in background
-    PlatformBridge.preWarmTrackCache(cacheRequests).catchError((_) {
-      // Silently ignore errors - this is just an optimization
-    });
+    PlatformBridge.preWarmTrackCache(cacheRequests).catchError((_) {});
   }
 }
 

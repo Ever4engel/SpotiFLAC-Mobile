@@ -25,13 +25,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   bool _isLoading = false;
   int _androidSdkVersion = 0;
   
-  // Spotify API credentials
   final _clientIdController = TextEditingController();
   final _clientSecretController = TextEditingController();
   bool _useSpotifyApi = false;
   bool _showClientSecret = false;
 
-  // Total steps: Storage -> Notification (Android 13+) -> Folder -> Spotify API
   int get _totalSteps => _androidSdkVersion >= 33 ? 4 : 3;
 
   @override
@@ -66,17 +64,14 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         });
       }
     } else if (Platform.isAndroid) {
-      // Check storage permission
       bool storageGranted = false;
       
       if (_androidSdkVersion >= 33) {
-        // Android 13+: Need BOTH MANAGE_EXTERNAL_STORAGE AND READ_MEDIA_AUDIO
         final manageStatus = await Permission.manageExternalStorage.status;
         final audioStatus = await Permission.audio.status;
         debugPrint('[Permission] Android 13+ check: MANAGE_EXTERNAL_STORAGE=$manageStatus, READ_MEDIA_AUDIO=$audioStatus');
         storageGranted = manageStatus.isGranted && audioStatus.isGranted;
       } else if (_androidSdkVersion >= 30) {
-        // Android 11-12: Need MANAGE_EXTERNAL_STORAGE only
         final manageStatus = await Permission.manageExternalStorage.status;
         debugPrint('[Permission] Android 11-12 check: MANAGE_EXTERNAL_STORAGE=$manageStatus');
         storageGranted = manageStatus.isGranted;
@@ -89,7 +84,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       
       debugPrint('[Permission] Final storageGranted=$storageGranted');
       
-      // Check notification permission (Android 13+)
       PermissionStatus notificationStatus = PermissionStatus.granted;
       if (_androidSdkVersion >= 33) {
         notificationStatus = await Permission.notification.status;
@@ -115,9 +109,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         bool allGranted = false;
         
         if (_androidSdkVersion >= 33) {
-          // Android 13+: Need BOTH MANAGE_EXTERNAL_STORAGE AND READ_MEDIA_AUDIO
-          
-          // First check/request MANAGE_EXTERNAL_STORAGE
           var manageStatus = await Permission.manageExternalStorage.status;
           if (!manageStatus.isGranted) {
             if (mounted) {
@@ -144,14 +135,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               
               if (shouldOpen == true) {
                 await Permission.manageExternalStorage.request();
-                // Re-check after returning from settings
                 await Future.delayed(const Duration(milliseconds: 500));
                 manageStatus = await Permission.manageExternalStorage.status;
               }
             }
           }
           
-          // Then request READ_MEDIA_AUDIO (this shows a dialog)
           var audioStatus = await Permission.audio.status;
           if (!audioStatus.isGranted && manageStatus.isGranted) {
             audioStatus = await Permission.audio.request();
@@ -160,7 +149,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
           allGranted = manageStatus.isGranted && audioStatus.isGranted;
           
         } else if (_androidSdkVersion >= 30) {
-          // Android 11-12: Need MANAGE_EXTERNAL_STORAGE only
           var manageStatus = await Permission.manageExternalStorage.status;
           if (!manageStatus.isGranted) {
             if (mounted) {
@@ -187,7 +175,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               
               if (shouldOpen == true) {
                 await Permission.manageExternalStorage.request();
-                // Re-check after returning from settings
                 await Future.delayed(const Duration(milliseconds: 500));
                 manageStatus = await Permission.manageExternalStorage.status;
               }
@@ -239,7 +226,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
           _showPermissionDeniedDialog('Notification');
         }
       } else {
-        // Notification permission not needed for older Android
         setState(() => _notificationPermissionGranted = true);
       }
     } catch (e) {
@@ -286,7 +272,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         // iOS: Show options dialog
         await _showIOSDirectoryOptions();
       } else {
-        // Android: Use file picker
         String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
           dialogTitle: context.l10n.setupSelectDownloadFolder,
         );
@@ -359,7 +344,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               subtitle: Text(context.l10n.setupChooseFromFilesSubtitle),
               onTap: () async {
                 Navigator.pop(ctx);
-                // Note: iOS requires folder to have at least one file to be selectable
                 final result = await FilePicker.platform.getDirectoryPath();
                 if (result != null) {
                   setState(() => _selectedDirectory = result);
@@ -444,10 +428,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
           _clientIdController.text.trim(),
           _clientSecretController.text.trim(),
         );
-        // Set search source to Spotify when credentials are provided
         ref.read(settingsProvider.notifier).setMetadataSource('spotify');
       } else {
-        // Use Deezer as default search source (free, no credentials required)
         ref.read(settingsProvider.notifier).setMetadataSource('deezer');
       }
       
@@ -482,7 +464,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Top section - Logo/Title
                 Column(
                   children: [
                     const SizedBox(height: 24),
@@ -501,7 +482,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   ],
                 ),
 
-                // Middle section - Steps and Content
                 Column(
                   children: [
                     const SizedBox(height: 24),
@@ -511,7 +491,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   ],
                 ),
 
-                // Bottom section - Navigation Buttons
                 Column(
                   children: [
                     const SizedBox(height: 24),
@@ -637,7 +616,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Icon with container background (M3 style)
         Container(
           width: 80,
           height: 80,
@@ -691,7 +669,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Icon with container background (M3 style)
         Container(
           width: 80,
           height: 80,
@@ -754,7 +731,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Icon with container background (M3 style)
         Container(
           width: 80,
           height: 80,
@@ -829,7 +805,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Icon with container background (M3 style)
         Container(
           width: 80,
           height: 80,
@@ -860,7 +835,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         ),
         const SizedBox(height: 24),
         
-        // Toggle card (M3 style)
         Card(
           elevation: 0,
           color: colorScheme.surfaceContainerHigh,
@@ -891,7 +865,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
           ),
         ),
         
-        // Credentials form (animated)
         AnimatedSize(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
@@ -906,7 +879,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Client ID
                     Text(context.l10n.credentialsClientId, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                     const SizedBox(height: 8),
                     TextField(
@@ -925,7 +897,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     ),
                     const SizedBox(height: 16),
                     
-                    // Client Secret
                     Text(context.l10n.credentialsClientSecret, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                     const SizedBox(height: 8),
                     TextField(
@@ -983,14 +954,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     final isLastStep = _currentStep == _totalSteps - 1;
     final canProceed = _isStepCompleted(_currentStep);
     
-    // For Spotify step, check if credentials are valid when enabled
     final isSpotifyStepValid = !_useSpotifyApi || 
         (_clientIdController.text.trim().isNotEmpty && _clientSecretController.text.trim().isNotEmpty);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Back button
         if (_currentStep > 0)
           TextButton.icon(
             onPressed: () => setState(() => _currentStep--),
@@ -1003,7 +972,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         else
           const SizedBox(width: 100),
 
-        // Next/Finish button
         if (!isLastStep)
           FilledButton(
             onPressed: canProceed ? () => setState(() => _currentStep++) : null,

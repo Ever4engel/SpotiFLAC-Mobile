@@ -52,11 +52,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   final Set<String> _pendingChecks = {};
   static const int _maxCacheSize = 500;
 
-  // Multi-select state
   bool _isSelectionMode = false;
   final Set<String> _selectedIds = {};
 
-  // Filter page controller for swipe between All/Albums/Singles
   PageController? _filterPageController;
   final List<String> _filterModes = ['all', 'albums', 'singles'];
   bool _isPageControllerInitialized = false;
@@ -66,7 +64,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   @override
   void initState() {
     super.initState();
-    // Will be initialized in build when we have access to ref
   }
 
   void _initializePageController() {
@@ -291,7 +288,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   ) {
     if (filterMode == 'all') return items;
 
-    // Count tracks per album
     final albumCounts = <String, int>{};
     for (final item in items) {
       final key = '${item.albumName}|${item.albumArtist ?? item.artistName}';
@@ -307,7 +303,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
           return (albumCounts[key] ?? 0) > 1;
         }).toList();
       case 'singles':
-        // Single = only 1 track from that album in history
         return items.where((item) {
           final key =
               '${item.albumName}|${item.albumArtist ?? item.artistName}';
@@ -320,7 +315,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
 
   /// Count albums vs singles for filter chips
   Map<String, int> _countAlbumsAndSingles(List<DownloadHistoryItem> items) {
-    // Count tracks per album
     final albumCounts = <String, int>{};
     for (final item in items) {
       final key = '${item.albumName}|${item.albumArtist ?? item.artistName}';
@@ -351,11 +345,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       albumMap.putIfAbsent(key, () => []).add(item);
     }
 
-    // Only include albums with more than 1 track
     final groupedAlbums = albumMap.entries.where((e) => e.value.length > 1).map(
       (e) {
         final tracks = e.value;
-        // Sort tracks by track number
         tracks.sort((a, b) {
           final aNum = a.trackNumber ?? 999;
           final bNum = b.trackNumber ?? 999;
@@ -374,7 +366,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       },
     ).toList();
 
-    // Sort by latest download
     groupedAlbums.sort((a, b) => b.latestDownload.compareTo(a.latestDownload));
 
     return groupedAlbums;
@@ -447,10 +438,8 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     final colorScheme = Theme.of(context).colorScheme;
     final topPadding = MediaQuery.of(context).padding.top;
 
-    // Group albums for Albums filter view
     final groupedAlbums = _groupByAlbum(allHistoryItems);
 
-    // Count for filter chips
     final counts = _countAlbumsAndSingles(allHistoryItems);
     final albumCount = _countUniqueAlbums(allHistoryItems);
     final singleCount = counts['singles'] ?? 0;
@@ -468,7 +457,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         children: [
           NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              // App Bar - always normal style
               SliverAppBar(
                 expandedHeight: 120 + topPadding,
                 collapsedHeight: kToolbarHeight,

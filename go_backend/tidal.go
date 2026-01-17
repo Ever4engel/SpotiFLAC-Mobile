@@ -194,7 +194,6 @@ func (t *TidalDownloader) GetAccessToken() (string, error) {
 		return "", err
 	}
 
-	// Cache the token
 	t.cachedToken = result.AccessToken
 	if result.ExpiresIn > 0 {
 		t.tokenExpiresAt = time.Now().Add(time.Duration(result.ExpiresIn) * time.Second)
@@ -662,12 +661,10 @@ func getDownloadURLParallel(apis []string, trackID int64, quality string) (strin
 	resultChan := make(chan tidalAPIResult, len(apis))
 	startTime := time.Now()
 
-	// Start all requests in parallel
 	for _, apiURL := range apis {
 		go func(api string) {
 			reqStart := time.Now()
 
-			// Create client with timeout for parallel requests
 			client := &http.Client{
 				Timeout: 15 * time.Second,
 			}
@@ -698,7 +695,6 @@ func getDownloadURLParallel(apis []string, trackID int64, quality string) (strin
 				return
 			}
 
-			// Try v2 format first (object with manifest)
 			var v2Response TidalAPIResponseV2
 			if err := json.Unmarshal(body, &v2Response); err == nil && v2Response.Data.Manifest != "" {
 				// IMPORTANT: Reject PREVIEW responses - we need FULL tracks
@@ -716,7 +712,6 @@ func getDownloadURLParallel(apis []string, trackID int64, quality string) (strin
 				return
 			}
 
-			// Fallback to v1 format (array with OriginalTrackUrl)
 			var v1Responses []struct {
 				OriginalTrackURL string `json:"OriginalTrackUrl"`
 			}
@@ -738,13 +733,11 @@ func getDownloadURLParallel(apis []string, trackID int64, quality string) (strin
 		}(apiURL)
 	}
 
-	// Collect results - return first success
 	var errors []string
 
 	for i := 0; i < len(apis); i++ {
 		result := <-resultChan
 		if result.err == nil {
-			// First success - use this one
 			GoLog("[Tidal] [Parallel] ✓ Got response from %s (%d-bit/%dHz) in %v\n",
 				result.apiURL, result.info.BitDepth, result.info.SampleRate, result.duration)
 
@@ -777,7 +770,6 @@ func (t *TidalDownloader) GetDownloadURL(trackID int64, quality string) (TidalDo
 		return TidalDownloadInfo{}, fmt.Errorf("no API URL configured")
 	}
 
-	// Use parallel approach - request from all APIs simultaneously
 	_, info, err := getDownloadURLParallel(apis, trackID, quality)
 	if err != nil {
 		return TidalDownloadInfo{}, fmt.Errorf("failed to get download URL: %w", err)
@@ -795,16 +787,13 @@ func parseManifest(manifestB64 string) (directURL string, initURL string, mediaU
 
 	manifestStr := string(manifestBytes)
 
-	// Debug: log first 500 chars of manifest for debugging
 	manifestPreview := manifestStr
 	if len(manifestPreview) > 500 {
 		manifestPreview = manifestPreview[:500] + "..."
 	}
 	GoLog("[Tidal] Manifest content: %s\n", manifestPreview)
 
-	// Check if it's BTS format (JSON) or DASH format (XML)
 	if strings.HasPrefix(manifestStr, "{") {
-		// BTS format - JSON with direct URLs
 		var btsManifest TidalBTSManifest
 		if err := json.Unmarshal(manifestBytes, &btsManifest); err != nil {
 			return "", "", nil, fmt.Errorf("failed to parse BTS manifest: %w", err)
@@ -817,7 +806,6 @@ func parseManifest(manifestB64 string) (directURL string, initURL string, mediaU
 		return btsManifest.URLs[0], "", nil, nil
 	}
 
-	// DASH format - XML with segments
 	var mpd MPD
 	if err := xml.Unmarshal(manifestBytes, &mpd); err != nil {
 		return "", "", nil, fmt.Errorf("failed to parse manifest XML: %w", err)
@@ -828,7 +816,6 @@ func parseManifest(manifestB64 string) (directURL string, initURL string, mediaU
 	mediaTemplate := segTemplate.Media
 
 	if initURL == "" || mediaTemplate == "" {
-		// Fallback: try regex extraction
 		initRe := regexp.MustCompile(`initialization="([^"]+)"`)
 		mediaRe := regexp.MustCompile(`media="([^"]+)"`)
 
@@ -844,11 +831,9 @@ func parseManifest(manifestB64 string) (directURL string, initURL string, mediaU
 		return "", "", nil, fmt.Errorf("no initialization URL found in manifest")
 	}
 
-	// Unescape HTML entities in URLs
 	initURL = strings.ReplaceAll(initURL, "&amp;", "&")
 	mediaTemplate = strings.ReplaceAll(mediaTemplate, "&amp;", "&")
 
-	// Calculate segment count from timeline
 	segmentCount := 0
 	GoLog("[Tidal] XML parsed segments: %d entries in timeline\n", len(segTemplate.Timeline.Segments))
 	for i, seg := range segTemplate.Timeline.Segments {
@@ -857,10 +842,8 @@ func parseManifest(manifestB64 string) (directURL string, initURL string, mediaU
 	}
 	GoLog("[Tidal] Segment count from XML: %d\n", segmentCount)
 
-	// If no segments found via XML, try regex
 	if segmentCount == 0 {
 		fmt.Println("[Tidal] No segments from XML, trying regex...")
-		// Match <S d="..." /> or <S d="..." r="..." />
 		segRe := regexp.MustCompile(`<S\s+d="(\d+)"(?:\s+r="(\d+)")?`)
 		matches := segRe.FindAllStringSubmatch(manifestStr, -1)
 		GoLog("[Tidal] Regex found %d segment entries\n", len(matches))
@@ -877,7 +860,6 @@ func parseManifest(manifestB64 string) (directURL string, initURL string, mediaU
 		GoLog("[Tidal] Total segments from regex: %d\n", segmentCount)
 	}
 
-	// Generate media URLs for each segment
 	for i := 1; i <= segmentCount; i++ {
 		mediaURL := strings.ReplaceAll(mediaTemplate, "$Number$", fmt.Sprintf("%d", i))
 		mediaURLs = append(mediaURLs, mediaURL)
@@ -890,9 +872,7 @@ func parseManifest(manifestB64 string) (directURL string, initURL string, mediaU
 func (t *TidalDownloader) DownloadFile(downloadURL, outputPath, itemID string) error {
 	ctx := context.Background()
 
-	// Handle manifest-based download (DASH/BTS)
 	if strings.HasPrefix(downloadURL, "MANIFEST:") {
-		// Initialize progress tracking for manifest downloads
 		if itemID != "" {
 			StartItemProgress(itemID)
 			defer CompleteItemProgress(itemID)
@@ -936,7 +916,6 @@ func (t *TidalDownloader) DownloadFile(downloadURL, outputPath, itemID string) e
 	}
 
 	expectedSize := resp.ContentLength
-	// Set total bytes if available
 	if expectedSize > 0 && itemID != "" {
 		SetItemBytesTotal(itemID, expectedSize)
 	}
@@ -946,24 +925,19 @@ func (t *TidalDownloader) DownloadFile(downloadURL, outputPath, itemID string) e
 		return err
 	}
 
-	// Use buffered writer for better performance (256KB buffer)
 	bufWriter := bufio.NewWriterSize(out, 256*1024)
 
-	// Use item progress writer with buffered output
 	var written int64
 	if itemID != "" {
 		progressWriter := NewItemProgressWriter(bufWriter, itemID)
 		written, err = io.Copy(progressWriter, resp.Body)
 	} else {
-		// Fallback: direct copy without progress tracking
 		written, err = io.Copy(bufWriter, resp.Body)
 	}
 
-	// Flush buffer before checking for errors
 	flushErr := bufWriter.Flush()
 	closeErr := out.Close()
 
-	// Check for any errors
 	if err != nil {
 		os.Remove(outputPath)
 		if isDownloadCancelled(itemID) {
@@ -980,7 +954,6 @@ func (t *TidalDownloader) DownloadFile(downloadURL, outputPath, itemID string) e
 		return fmt.Errorf("failed to close file: %w", closeErr)
 	}
 
-	// Verify file size if Content-Length was provided
 	if expectedSize > 0 && written != expectedSize {
 		os.Remove(outputPath)
 		return fmt.Errorf("incomplete download: expected %d bytes, got %d bytes", expectedSize, written)
@@ -1003,7 +976,6 @@ func (t *TidalDownloader) downloadFromManifest(ctx context.Context, manifestB64,
 		Timeout: 120 * time.Second,
 	}
 
-	// If we have a direct URL (BTS format), download directly with progress tracking
 	if directURL != "" {
 		GoLog("[Tidal] BTS format - downloading from direct URL: %s...\n", directURL[:min(80, len(directURL))])
 		// Note: Progress tracking is initialized by the caller (DownloadFile)
@@ -1035,7 +1007,6 @@ func (t *TidalDownloader) downloadFromManifest(ctx context.Context, manifestB64,
 		GoLog("[Tidal] BTS response OK, Content-Length: %d\n", resp.ContentLength)
 
 		expectedSize := resp.ContentLength
-		// Set total bytes for progress tracking
 		if expectedSize > 0 && itemID != "" {
 			SetItemBytesTotal(itemID, expectedSize)
 		}
@@ -1045,7 +1016,6 @@ func (t *TidalDownloader) downloadFromManifest(ctx context.Context, manifestB64,
 			return fmt.Errorf("failed to create file: %w", err)
 		}
 
-		// Use item progress writer
 		var written int64
 		if itemID != "" {
 			progressWriter := NewItemProgressWriter(out, itemID)
@@ -1068,7 +1038,6 @@ func (t *TidalDownloader) downloadFromManifest(ctx context.Context, manifestB64,
 			return fmt.Errorf("failed to close file: %w", closeErr)
 		}
 
-		// Verify file size if Content-Length was provided
 		if expectedSize > 0 && written != expectedSize {
 			os.Remove(outputPath)
 			return fmt.Errorf("incomplete download: expected %d bytes, got %d bytes", expectedSize, written)
@@ -1077,13 +1046,8 @@ func (t *TidalDownloader) downloadFromManifest(ctx context.Context, manifestB64,
 		return nil
 	}
 
-	// DASH format - download segments directly to M4A file (no temp file to avoid Android permission issues)
-	// On Android, we can't use ffmpeg, so we save as M4A directly
 	m4aPath := strings.TrimSuffix(outputPath, ".flac") + ".m4a"
 	GoLog("[Tidal] DASH format - downloading %d segments directly to: %s\n", len(mediaURLs), m4aPath)
-
-	// Note: Progress tracking is initialized by the caller (DownloadFile or downloadFromTidal)
-	// We just update progress here based on segment count
 
 	out, err := os.Create(m4aPath)
 	if err != nil {
@@ -1091,7 +1055,6 @@ func (t *TidalDownloader) downloadFromManifest(ctx context.Context, manifestB64,
 		return fmt.Errorf("failed to create M4A file: %w", err)
 	}
 
-	// Download initialization segment
 	GoLog("[Tidal] Downloading init segment...\n")
 	if isDownloadCancelled(itemID) {
 		out.Close()
@@ -1134,7 +1097,6 @@ func (t *TidalDownloader) downloadFromManifest(ctx context.Context, manifestB64,
 		return fmt.Errorf("failed to write init segment: %w", err)
 	}
 
-	// Download media segments with progress
 	totalSegments := len(mediaURLs)
 	for i, mediaURL := range mediaURLs {
 		if isDownloadCancelled(itemID) {
@@ -1147,7 +1109,6 @@ func (t *TidalDownloader) downloadFromManifest(ctx context.Context, manifestB64,
 			GoLog("[Tidal] Downloading segment %d/%d...\n", i+1, totalSegments)
 		}
 
-		// Update progress based on segment count
 		if itemID != "" {
 			progress := float64(i+1) / float64(totalSegments)
 			SetItemProgress(itemID, progress, 0, 0)

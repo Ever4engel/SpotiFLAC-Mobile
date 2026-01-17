@@ -21,7 +21,6 @@ class AppearanceSettingsPage extends ConsumerWidget {
       child: Scaffold(
         body: CustomScrollView(
           slivers: [
-            // Collapsing App Bar with back button
             SliverAppBar(
             expandedHeight: 120 + topPadding,
             collapsedHeight: kToolbarHeight,
@@ -50,7 +49,6 @@ class AppearanceSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // Color section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionColor),
             ),
@@ -80,10 +78,9 @@ class AppearanceSettingsPage extends ConsumerWidget {
                     onColorSelected: (color) =>
                         ref.read(themeProvider.notifier).setSeedColor(color),
                   ),
-                ),
               ),
+            ),
 
-            // Theme section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionTheme),
             ),
@@ -109,7 +106,6 @@ class AppearanceSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // Language section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionLanguage),
             ),
@@ -126,7 +122,6 @@ class AppearanceSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // Layout section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionLayout),
             ),
@@ -143,7 +138,6 @@ class AppearanceSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // Fill remaining for scroll
             const SliverFillRemaining(
               hasScrollBody: false,
               child: SizedBox(height: 32),
@@ -174,7 +168,6 @@ class _ThemePreviewCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
-            // Decorative background blobs
             Positioned(
               top: -50,
               right: -50,
@@ -200,7 +193,6 @@ class _ThemePreviewCard extends StatelessWidget {
               ),
             ),
 
-            // Foreground "fake UI"
             Center(
               child: Container(
                 width: 260,
@@ -235,7 +227,6 @@ class _ThemePreviewCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 16),
 
-                    // Fake Text Info
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,7 +279,6 @@ class _ThemePreviewCard extends StatelessWidget {
               ),
             ),
 
-            // Label badge
             Positioned(
               bottom: 12,
               right: 12,
@@ -510,10 +500,7 @@ class _ThemeModeChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // Unselected chips need contrast with card background
-    // Card uses: dark = white 8% overlay, light = surfaceContainerHighest
-    // So chips use: dark = white 5% overlay (darker), light = black 5% overlay (darker than card)
+    
     final unselectedColor = isDark
         ? Color.alphaBlend(
             Colors.white.withValues(alpha: 0.05),
@@ -732,15 +719,12 @@ class _LanguageSelector extends StatelessWidget {
   /// Uses filteredLocaleCodes from supported_locales.dart (generated file).
   List<(String, String, IconData)> get _languages {
     return _allLanguages.where((lang) {
-      // Always include 'system' option
       if (lang.$1 == 'system') return true;
-      // Only include languages in the filtered set
       return filteredLocaleCodes.contains(lang.$1);
     }).toList();
   }
 
   String _getLanguageName(String code) {
-    // Search in all languages (not just filtered) for display name fallback
     for (final lang in _allLanguages) {
       if (lang.$1 == code) return lang.$2;
     }

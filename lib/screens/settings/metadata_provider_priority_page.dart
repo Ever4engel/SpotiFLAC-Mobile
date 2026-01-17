@@ -24,16 +24,13 @@ class _MetadataProviderPriorityPageState extends ConsumerState<MetadataProviderP
     final extState = ref.read(extensionProvider);
     final allProviders = ref.read(extensionProvider.notifier).getAllMetadataProviders();
     
-    // Use saved priority if available, otherwise use default order
     if (extState.metadataProviderPriority.isNotEmpty) {
       _providers = List.from(extState.metadataProviderPriority);
-      // Add any new providers not in saved priority
       for (final provider in allProviders) {
         if (!_providers.contains(provider)) {
           _providers.add(provider);
         }
       }
-      // Remove providers that no longer exist
       _providers.removeWhere((p) => !allProviders.contains(p));
     } else {
       _providers = allProviders;
@@ -57,7 +54,6 @@ class _MetadataProviderPriorityPageState extends ConsumerState<MetadataProviderP
       child: Scaffold(
         body: CustomScrollView(
           slivers: [
-            // App Bar
             SliverAppBar(
               expandedHeight: 120 + topPadding,
               collapsedHeight: kToolbarHeight,
@@ -109,7 +105,6 @@ class _MetadataProviderPriorityPageState extends ConsumerState<MetadataProviderP
               ),
             ),
 
-            // Description
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -122,7 +117,6 @@ class _MetadataProviderPriorityPageState extends ConsumerState<MetadataProviderP
               ),
             ),
 
-            // Provider list
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverReorderableList(
@@ -150,7 +144,6 @@ class _MetadataProviderPriorityPageState extends ConsumerState<MetadataProviderP
               ),
             ),
 
-            // Info section
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -258,7 +251,6 @@ class _MetadataProviderItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                // Priority number
                 Container(
                   width: 28,
                   height: 28,
@@ -281,7 +273,6 @@ class _MetadataProviderItem extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                // Provider icon
                 Icon(
                   info.icon,
                   color: info.isBuiltIn
@@ -289,7 +280,6 @@ class _MetadataProviderItem extends StatelessWidget {
                       : colorScheme.secondary,
                 ),
                 const SizedBox(width: 12),
-                // Provider name
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,7 +299,6 @@ class _MetadataProviderItem extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Drag handle
                 Icon(
                   Icons.drag_handle,
                   color: colorScheme.onSurfaceVariant,
@@ -339,7 +328,6 @@ class _MetadataProviderItem extends StatelessWidget {
           isBuiltIn: true,
         );
       default:
-        // Extension provider
         return _MetadataProviderInfo(
           name: provider,
           icon: Icons.extension,

@@ -29,7 +29,6 @@ class _StoreTabState extends ConsumerState<StoreTab> {
 
     final cacheDir = await getApplicationCacheDirectory();
 
-    // Check if widget is still mounted after async operation
     if (!mounted) return;
 
     await ref.read(storeProvider.notifier).initialize(cacheDir.path);
@@ -53,7 +52,6 @@ class _StoreTabState extends ConsumerState<StoreTab> {
             ref.read(storeProvider.notifier).refresh(forceRefresh: true),
         child: CustomScrollView(
           slivers: [
-            // App Bar - consistent with other tabs
             SliverAppBar(
               expandedHeight: 120 + topPadding,
               collapsedHeight: kToolbarHeight,
@@ -87,7 +85,6 @@ class _StoreTabState extends ConsumerState<StoreTab> {
               ),
             ),
 
-            // Search Bar
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -131,7 +128,6 @@ class _StoreTabState extends ConsumerState<StoreTab> {
               ),
             ),
 
-            // Category Chips
             SliverToBoxAdapter(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -203,7 +199,6 @@ class _StoreTabState extends ConsumerState<StoreTab> {
               ),
             ),
 
-            // Content
             if (state.isLoading && state.extensions.isEmpty)
               const SliverFillRemaining(
                 child: Center(child: CircularProgressIndicator()),
@@ -215,7 +210,6 @@ class _StoreTabState extends ConsumerState<StoreTab> {
             else if (state.filteredExtensions.isEmpty)
               SliverFillRemaining(child: _buildEmptyState(state, colorScheme))
             else ...[
-              // Extensions count
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -228,7 +222,6 @@ class _StoreTabState extends ConsumerState<StoreTab> {
                 ),
               ),
 
-              // Extensions list in grouped card (like queue_tab)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -252,7 +245,6 @@ class _StoreTabState extends ConsumerState<StoreTab> {
                 ),
               ),
 
-              // Bottom padding
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
             ],
           ],
@@ -457,7 +449,6 @@ class _ExtensionItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                // Extension icon - custom or category-based
                 Container(
                   width: 44,
                   height: 44,
@@ -507,7 +498,6 @@ class _ExtensionItem extends StatelessWidget {
                         ),
                 ),
                 const SizedBox(width: 16),
-                // Extension info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -518,10 +508,9 @@ class _ExtensionItem extends StatelessWidget {
                             child: Text(
                               extension.displayName,
                               style: Theme.of(context).textTheme.bodyLarge
-                                  ?.copyWith(fontWeight: FontWeight.w500),
+                                  ?.copyWith(fontWeight: FontWeight.w500                              ),
                             ),
                           ),
-                          // Version badge
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
@@ -548,7 +537,6 @@ class _ExtensionItem extends StatelessWidget {
                           color: colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      // Warning badge for incompatible extensions
                       if (extension.requiresNewerApp) ...[
                         const SizedBox(height: 4),
                         Container(
@@ -587,7 +575,6 @@ class _ExtensionItem extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Action button
                 if (isDownloading)
                   const SizedBox(
                     width: 24,

@@ -44,7 +44,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   }
 
   Future<void> _checkFile() async {
-    // Strip EXISTS: prefix from legacy history items
     var filePath = widget.item.filePath;
     if (filePath.startsWith('EXISTS:')) {
       filePath = filePath.substring(7);
@@ -66,14 +65,12 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         _fileSize = size;
       });
       
-      // Auto-load lyrics if file exists (embedded lyrics are instant)
       if (exists) {
         _fetchLyrics();
       }
     }
   }
 
-  // Use data directly from history item (cached from download)
   DownloadHistoryItem get item => widget.item;
   String get trackName => item.trackName;
   String get artistName => item.artistName;
@@ -84,7 +81,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   String? get releaseDate => item.releaseDate;
   String? get isrc => item.isrc;
   
-  // Clean filePath - strip EXISTS: prefix from legacy history items
   String get cleanFilePath {
     final path = item.filePath;
     return path.startsWith('EXISTS:') ? path.substring(7) : path;
@@ -99,7 +95,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App Bar with cover art background
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
@@ -138,34 +133,28 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             ],
           ),
 
-          // Content
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Track info card
                   _buildTrackInfoCard(context, colorScheme, _fileExists),
                   
                   const SizedBox(height: 16),
                   
-                  // Metadata card
                   _buildMetadataCard(context, colorScheme, _fileSize),
                   
                   const SizedBox(height: 16),
                   
-                  // File info card
                   _buildFileInfoCard(context, colorScheme, _fileExists, _fileSize),
                   
                   const SizedBox(height: 16),
                   
-                  // Lyrics card
                   _buildLyricsCard(context, colorScheme),
                   
                   const SizedBox(height: 24),
                   
-                  // Action buttons
                   _buildActionButtons(context, ref, colorScheme, _fileExists),
                   
                   const SizedBox(height: 32),
@@ -182,7 +171,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Blurred background
         if (item.coverUrl != null)
           CachedNetworkImage(
             imageUrl: item.coverUrl!,
@@ -191,7 +179,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             colorBlendMode: BlendMode.darken,
           ),
         
-        // Gradient overlay
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -207,7 +194,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
           ),
         ),
         
-        // Cover art centered
         Center(
           child: Padding(
             padding: const EdgeInsets.only(top: 60),
@@ -268,7 +254,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Track name (from file metadata)
             Text(
               trackName,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -278,7 +263,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             ),
             const SizedBox(height: 4),
             
-            // Artist name (from file metadata)
             Text(
               artistName,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -287,7 +271,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             ),
             const SizedBox(height: 8),
             
-            // Album name (from file metadata)
             Row(
               children: [
                 Icon(
@@ -372,10 +355,8 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             ),
             const SizedBox(height: 16),
             
-            // Metadata grid
             _buildMetadataGrid(context, colorScheme),
             
-            // Streaming service link button
             if (item.spotifyId != null && item.spotifyId!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Builder(
@@ -416,28 +397,24 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         : Uri.parse('spotify:track:$rawId');
     
     try {
-      // Try to open in App first using URI scheme
       final launched = await launchUrl(
         appUri,
         mode: LaunchMode.externalApplication,
       );
       
       if (!launched) {
-        // Fallback to web URL which will redirect to app if installed
         await launchUrl(
           Uri.parse(webUrl),
           mode: LaunchMode.externalApplication,
         );
       }
     } catch (e) {
-      // If URI scheme fails, try web URL
       try {
         await launchUrl(
           Uri.parse(webUrl),
           mode: LaunchMode.externalApplication,
         );
       } catch (_) {
-        // Last resort: copy to clipboard
         if (context.mounted) {
           _copyToClipboard(context, webUrl);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -449,7 +426,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   }
 
   Widget _buildMetadataGrid(BuildContext context, ColorScheme colorScheme) {
-    // Build audio quality string from file metadata
     String? audioQualityStr;
     if (bitDepth != null && sampleRate != null) {
       final sampleRateKHz = (sampleRate! / 1000).toStringAsFixed(1);
@@ -568,7 +544,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             ),
             const SizedBox(height: 16),
             
-            // Format chip
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -651,7 +626,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             
             const SizedBox(height: 16),
             
-            // File path
             InkWell(
               onTap: () => _copyToClipboard(context, cleanFilePath),
               borderRadius: BorderRadius.circular(12),
@@ -811,7 +785,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             _lyricsLoading = false;
           });
         } else {
-          // Clean up LRC timestamps for display
           final cleanLyrics = _cleanLrcForDisplay(result);
           setState(() {
             _lyrics = cleanLyrics;
@@ -851,7 +824,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   Widget _buildActionButtons(BuildContext context, WidgetRef ref, ColorScheme colorScheme, bool fileExists) {
     return Row(
       children: [
-        // Play button
         Expanded(
           flex: 2,
           child: FilledButton.icon(
@@ -868,7 +840,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         ),
         const SizedBox(width: 12),
         
-        // Delete button
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () => _confirmDelete(context, ref, colorScheme),
@@ -951,7 +922,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
           ),
           TextButton(
             onPressed: () async {
-              // Delete the file first
               try {
                 final file = File(cleanFilePath);
                 if (await file.exists()) {
@@ -961,7 +931,6 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
                 debugPrint('Failed to delete file: $e');
               }
               
-              // Remove from history
               ref.read(downloadHistoryProvider.notifier).removeFromHistory(item.id);
               
               if (context.mounted) {

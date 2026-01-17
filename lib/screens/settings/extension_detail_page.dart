@@ -62,7 +62,6 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
       child: Scaffold(
         body: CustomScrollView(
           slivers: [
-            // App Bar
             SliverAppBar(
             expandedHeight: 120 + topPadding,
             collapsedHeight: kToolbarHeight,
@@ -98,7 +97,6 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
             ),
           ),
 
-          // Extension Info Card
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -202,7 +200,6 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
             ),
           ),
 
-          // Capabilities
           SliverToBoxAdapter(
             child: SettingsSectionHeader(title: context.l10n.extensionCapabilities),
           ),
@@ -254,9 +251,6 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
             ),
           ),
 
-
-
-          // URL Handler Section (if extension handles URLs)
           if (extension.hasURLHandler && extension.urlHandler!.patterns.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.extensionUrlHandler),
@@ -272,7 +266,6 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
             ),
           ],
 
-          // Quality Options Section (for download providers)
           if (extension.hasDownloadProvider && extension.qualityOptions.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.extensionQualityOptions),
@@ -291,7 +284,6 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
             ),
           ],
 
-          // Post-Processing Hooks (if available)
           if (extension.hasPostProcessing && extension.postProcessing!.hooks.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.extensionPostProcessingHooks),
@@ -310,7 +302,6 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
             ),
           ],
 
-          // Permissions
           if (extension.permissions.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.extensionPermissions),
@@ -329,7 +320,6 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
             ),
           ],
 
-          // Settings
           if (extension.settings.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.extensionSettings),
@@ -358,7 +348,6 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
               ),
           ],
 
-          // Remove button
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -424,7 +413,6 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
           .read(extensionProvider.notifier)
           .removeExtension(widget.extensionId);
       if (success && mounted) {
-        // Refresh store to update isInstalled status
         ref.read(storeProvider.notifier).refresh();
         Navigator.pop(this.context);
       }
@@ -557,7 +545,6 @@ class _PermissionItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     
-    // Parse permission to get icon and description
     IconData icon = Icons.security;
     String description = permission;
     

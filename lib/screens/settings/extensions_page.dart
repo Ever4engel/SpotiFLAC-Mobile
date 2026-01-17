@@ -32,7 +32,6 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
       final extensionsDir = '${appDir.path}/extensions';
       final dataDir = '${appDir.path}/extension_data';
       
-      // Create directories if they don't exist
       await Directory(extensionsDir).create(recursive: true);
       await Directory(dataDir).create(recursive: true);
       
@@ -87,7 +86,6 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
             ),
           ),
 
-          // Loading indicator
           if (extState.isLoading)
             const SliverToBoxAdapter(
               child: Padding(
@@ -96,7 +94,6 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
               ),
             ),
 
-          // Error message
           if (extState.error != null)
             SliverToBoxAdapter(
               child: Padding(
@@ -137,7 +134,6 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
             ),
           ),
 
-          // Installed Extensions
           SliverToBoxAdapter(
             child: SettingsSectionHeader(title: context.l10n.extensionsInstalledSection),
           ),
@@ -203,7 +199,6 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
               ),
             ),
 
-          // Install button
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -284,11 +279,9 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
           if (success) {
             message = context.l10n.extensionsInstalledSuccess;
           } else {
-            // Parse friendly error message
             message = _getFriendlyErrorMessage(extState.error);
           }
           
-          // Clear the error from state to avoid showing it twice (in error container)
           ref.read(extensionProvider.notifier).clearError();
           
           ScaffoldMessenger.of(context).showSnackBar(
@@ -305,15 +298,11 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
     
     String message = error;
     
-    // Remove PlatformException wrapper if present
-    // Format: PlatformException(ERROR, actual message, null, null)
     if (message.contains('PlatformException')) {
-      // Try to extract the actual error message
       final match = RegExp(r'PlatformException\([^,]+,\s*([^,]+(?:,[^,]+)?),').firstMatch(message);
       if (match != null) {
         message = match.group(1)?.trim() ?? message;
       } else {
-        // Fallback: try simpler extraction
         final simpleMatch = RegExp(r'PlatformException\([^,]+,\s*(.+?),\s*null').firstMatch(message);
         if (simpleMatch != null) {
           message = simpleMatch.group(1)?.trim() ?? message;
@@ -321,7 +310,6 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
       }
     }
     
-    // Clean up any remaining artifacts
     message = message.replaceAll(RegExp(r',\s*null\s*,\s*null\)?$'), '');
     message = message.replaceAll(RegExp(r'^\s*,\s*'), '');
     
@@ -390,7 +378,6 @@ class _ExtensionItem extends StatelessWidget {
                         ),
                 ),
                 const SizedBox(width: 16),
-                // Extension info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,7 +432,6 @@ class _DownloadPriorityItem extends ConsumerWidget {
     final extState = ref.watch(extensionProvider);
     final colorScheme = Theme.of(context).colorScheme;
     
-    // Check if any extension has download provider
     final hasDownloadExtensions = extState.extensions
         .any((e) => e.enabled && e.hasDownloadProvider);
     
@@ -584,12 +570,10 @@ class _SearchProviderSelector extends ConsumerWidget {
     final extState = ref.watch(extensionProvider);
     final colorScheme = Theme.of(context).colorScheme;
     
-    // Get extensions with custom search
     final searchProviders = extState.extensions
         .where((e) => e.enabled && e.hasCustomSearch)
         .toList();
     
-    // Get current provider name
     String currentProviderName = context.l10n.extensionDefaultProvider;
     if (settings.searchProvider != null && settings.searchProvider!.isNotEmpty) {
       final ext = searchProviders.where((e) => e.id == settings.searchProvider).firstOrNull;
@@ -689,7 +673,6 @@ class _SearchProviderSelector extends ConsumerWidget {
                 ),
               ),
             ),
-            // Default option
             ListTile(
               leading: Icon(Icons.music_note, color: colorScheme.primary),
               title: Text(ctx.l10n.extensionDefaultProvider),
@@ -702,7 +685,6 @@ class _SearchProviderSelector extends ConsumerWidget {
                 Navigator.pop(ctx);
               },
             ),
-            // Extension options
             ...searchProviders.map((ext) => ListTile(
               leading: Icon(Icons.extension, color: colorScheme.secondary),
               title: Text(ext.displayName),

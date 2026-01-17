@@ -20,7 +20,6 @@ class SettingsTab extends ConsumerWidget {
 
     return CustomScrollView(
       slivers: [
-        // Collapsing App Bar
         SliverAppBar(
           expandedHeight: 120 + topPadding,
           collapsedHeight: kToolbarHeight,
@@ -54,7 +53,6 @@ class SettingsTab extends ConsumerWidget {
           ),
         ),
 
-        // First group: Appearance & Download
         SliverToBoxAdapter(
           child: Builder(
             builder: (context) {
@@ -94,7 +92,6 @@ class SettingsTab extends ConsumerWidget {
           ),
         ),
 
-        // Second group: Logs & About
         SliverToBoxAdapter(
           child: Builder(
             builder: (context) {
@@ -120,7 +117,6 @@ class SettingsTab extends ConsumerWidget {
           ),
         ),
 
-        // Fill remaining space
         const SliverFillRemaining(hasScrollBody: false, child: SizedBox()),
       ],
     );

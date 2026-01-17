@@ -11,7 +11,6 @@ import 'package:spotiflac_android/widgets/settings_group.dart';
 class DownloadSettingsPage extends ConsumerWidget {
   const DownloadSettingsPage({super.key});
   
-  // Built-in services that support quality options
   static const _builtInServices = ['tidal', 'qobuz', 'amazon'];
 
   @override
@@ -20,7 +19,6 @@ class DownloadSettingsPage extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final topPadding = MediaQuery.of(context).padding.top;
     
-    // Check if current service is built-in (supports quality options)
     final isBuiltInService = _builtInServices.contains(settings.defaultService);
 
     return PopScope(
@@ -28,7 +26,6 @@ class DownloadSettingsPage extends ConsumerWidget {
       child: Scaffold(
         body: CustomScrollView(
           slivers: [
-            // Collapsing App Bar with back button
             SliverAppBar(
             expandedHeight: 120 + topPadding,
             collapsedHeight: kToolbarHeight,
@@ -85,7 +82,6 @@ class DownloadSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // Quality section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionAudioQuality),
             ),
@@ -99,7 +95,6 @@ class DownloadSettingsPage extends ConsumerWidget {
                         ? context.l10n.downloadAskQualitySubtitle
                         : 'Select a built-in service to enable',
                     value: settings.askQualityBeforeDownload,
-                    // Not selected visually if extension is active
                     enabled: isBuiltInService,
                     onChanged: (value) => ref
                         .read(settingsProvider.notifier)
@@ -159,7 +154,6 @@ class DownloadSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // File settings section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionFileSettings),
             ),
@@ -321,11 +315,9 @@ class DownloadSettingsPage extends ConsumerWidget {
       String insertion = tag;
       if (start > 0) {
         final before = text.substring(0, start);
-        // Smart separator: if not starting a file and no hyphen separator exists, add " - "
         if (!before.trim().endsWith('-')) {
           insertion = ' - $tag';
         } else if (before.trim().endsWith('-') && !before.endsWith(' ')) {
-          // If ends with '-' but no space, add space
           insertion = ' $tag';
         }
       }
@@ -697,12 +689,10 @@ class _ServiceSelector extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final extState = ref.watch(extensionProvider);
     
-    // Get enabled extension download providers
     final extensionProviders = extState.extensions
         .where((e) => e.enabled && e.hasDownloadProvider)
         .toList();
     
-    // Check if current service is an extension that's now disabled
     final isExtensionService = !['tidal', 'qobuz', 'amazon'].contains(currentService);
     final isCurrentExtensionEnabled = isExtensionService 
         ? extensionProviders.any((e) => e.id == currentService)
@@ -739,7 +729,6 @@ class _ServiceSelector extends ConsumerWidget {
               ),
             ],
           ),
-          // Show extension download providers if any
           if (extensionProviders.isNotEmpty) ...[
             const SizedBox(height: 8),
             Row(
@@ -755,7 +744,6 @@ class _ServiceSelector extends ConsumerWidget {
                     ),
                   ),
                 ],
-                // Fill remaining space if less than 3 extensions
                 for (int i = extensionProviders.length; i < 3; i++) ...[
                   const SizedBox(width: 8),
                   const Expanded(child: SizedBox()),

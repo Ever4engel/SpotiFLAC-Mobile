@@ -23,7 +23,6 @@ class OptionsSettingsPage extends ConsumerWidget {
       child: Scaffold(
         body: CustomScrollView(
           slivers: [
-            // Collapsing App Bar with back button
             SliverAppBar(
             expandedHeight: 120 + topPadding,
             collapsedHeight: kToolbarHeight,
@@ -63,7 +62,6 @@ class OptionsSettingsPage extends ConsumerWidget {
             ),
           ),
 
-            // Search Source section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionSearchSource),
             ),
@@ -77,7 +75,6 @@ class OptionsSettingsPage extends ConsumerWidget {
                         .setMetadataSource(v),
                   ),
                   if (settings.metadataSource == 'spotify') ...[
-                    // Info card about Spotify credentials requirement
                     if (settings.spotifyClientId.isEmpty)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -130,7 +127,6 @@ class OptionsSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // Download options section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionDownload),
             ),
@@ -179,7 +175,6 @@ class OptionsSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // Performance section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionPerformance),
             ),
@@ -196,7 +191,6 @@ class OptionsSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // App section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionApp),
             ),
@@ -230,7 +224,6 @@ class OptionsSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // Data section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionData),
             ),
@@ -249,7 +242,6 @@ class OptionsSettingsPage extends ConsumerWidget {
               ),
             ),
 
-            // Debug section
             SliverToBoxAdapter(
               child: SettingsSectionHeader(title: context.l10n.sectionDebug),
             ),
@@ -370,7 +362,6 @@ class OptionsSettingsPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 32),
 
-                  // Client ID
                   TextField(
                     controller: clientIdController,
                     decoration: InputDecoration(
@@ -408,7 +399,6 @@ class OptionsSettingsPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Client Secret
                   TextField(
                     controller: clientSecretController,
                     obscureText: true,
@@ -804,7 +794,6 @@ class _MetadataSourceSelector extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final extState = ref.watch(extensionProvider);
     
-    // Check if extension search provider is active AND enabled
     Extension? activeExtension;
     if (settings.searchProvider != null && settings.searchProvider!.isNotEmpty) {
       activeExtension = extState.extensions
@@ -860,10 +849,8 @@ class _MetadataSourceSelector extends ConsumerWidget {
               _SourceChip(
                 icon: Icons.music_note,
                 label: 'Spotify',
-                // Not selected if extension is active
                 isSelected: currentSource == 'spotify' && !hasExtensionSearch,
                 onTap: () {
-                  // If extension was active, reset it to default
                   if (hasExtensionSearch) {
                     ref.read(settingsProvider.notifier).setSearchProvider(null);
                   }

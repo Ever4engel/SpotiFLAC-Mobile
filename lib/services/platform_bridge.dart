@@ -770,7 +770,6 @@ class PlatformBridge {
       if (result == null || result == '') return null;
       return jsonDecode(result as String) as Map<String, dynamic>;
     } catch (e) {
-      // No extension found or error handling URL
       return null;
     }
   }

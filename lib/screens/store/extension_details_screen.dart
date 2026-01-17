@@ -20,11 +20,8 @@ class _ExtensionDetailsScreenState
 
   @override
   Widget build(BuildContext context) {
-    // Watch store provider to get latest state of this extension (e.g. if updated/installed)
     final storeState = ref.watch(storeProvider);
 
-    // Find our extension in the store state to get the latest status
-    // If not found in current store state (rare), fallback to widget.extension
     final liveExtension =
         storeState.extensions
             .where((e) => e.id == widget.extension.id)
@@ -188,7 +185,6 @@ class _ExtensionDetailsScreenState
 
                 const SizedBox(height: 16),
 
-                // Badges row
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -215,7 +211,6 @@ class _ExtensionDetailsScreenState
 
                 const SizedBox(height: 24),
 
-                // Action Buttons
                 if (isDownloading)
                   Center(
                     child: CircularProgressIndicator(
@@ -410,7 +405,6 @@ class _ExtensionDetailsScreenState
     StoreExtension ext,
     ColorScheme colorScheme,
   ) {
-    // Determine capabilities based on category
     final isMetadataProvider = ext.category == 'metadata' || ext.category == 'integration';
     final isDownloadProvider = ext.category == 'download';
     final isLyricsProvider = ext.category == 'lyrics';

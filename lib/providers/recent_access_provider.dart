@@ -112,7 +112,6 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
             .toList();
         state = state.copyWith(items: items, isLoaded: true);
       } catch (e) {
-        // Invalid JSON, start fresh
         state = state.copyWith(isLoaded: true);
       }
     } else {
@@ -210,10 +209,8 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
         .where((e) => e.uniqueKey != item.uniqueKey)
         .toList();
     
-    // Add new item at the beginning
     updatedItems.insert(0, item);
     
-    // Limit to max items
     if (updatedItems.length > _maxRecentItems) {
       updatedItems.removeRange(_maxRecentItems, updatedItems.length);
     }
@@ -221,7 +218,6 @@ class RecentAccessNotifier extends Notifier<RecentAccessState> {
     state = state.copyWith(items: updatedItems);
     _saveHistory();
     
-    // Debug log
     // ignore: avoid_print
     print('[RecentAccess] Total items now: ${updatedItems.length}');
   }

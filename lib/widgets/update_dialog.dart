@@ -30,7 +30,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
   Future<void> _downloadAndInstall() async {
     final apkUrl = widget.updateInfo.apkDownloadUrl;
     
-    // If no direct APK URL, open release page
     if (apkUrl == null) {
       final uri = Uri.parse(widget.updateInfo.downloadUrl);
       if (await canLaunchUrl(uri)) {
@@ -60,7 +59,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
             _statusText = '$receivedMB / $totalMB MB';
           });
         }
-        // Update notification
         notificationService.showUpdateDownloadProgress(
           version: widget.updateInfo.version,
           received: received,
@@ -70,7 +68,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
     );
 
     if (filePath != null) {
-      // Cancel progress notification first
       await notificationService.cancelUpdateNotification();
       
       await notificationService.showUpdateDownloadComplete(
@@ -81,10 +78,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
         Navigator.pop(context);
       }
       
-      // Open APK for installation
       await ApkDownloader.installApk(filePath);
     } else {
-      // Cancel progress notification first
       await notificationService.cancelUpdateNotification();
       
       await notificationService.showUpdateDownloadFailed();
@@ -116,7 +111,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with icon
             Row(
               children: [
                 Container(
@@ -142,7 +136,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
             ),
             const SizedBox(height: 20),
             
-            // Version badge
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
@@ -165,7 +158,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
             ),
             const SizedBox(height: 20),
             
-            // Download progress (when downloading)
             if (_isDownloading) ...[
               Container(
                 padding: const EdgeInsets.all(16),
@@ -209,7 +201,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 ),
               ),
             ] else ...[
-              // Changelog section
               Text(context.l10n.updateWhatsNew, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Container(
@@ -231,7 +222,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
             ],
             const SizedBox(height: 24),
             
-            // Action buttons
             if (_isDownloading)
               SizedBox(
                 width: double.infinity,
@@ -303,19 +293,16 @@ class _UpdateDialogState extends State<UpdateDialog> {
   String _formatChangelog(String changelog) {
     var content = changelog;
     
-    // Find content after "What's New" header
     final whatsNewMatch = RegExp(r"###?\s*What'?s\s*New\s*\n", caseSensitive: false).firstMatch(content);
     if (whatsNewMatch != null) {
       content = content.substring(whatsNewMatch.end);
     }
     
-    // Cut off at "Downloads" section or horizontal rule
     final cutoffMatch = RegExp(r'\n---|\n###?\s*Downloads', caseSensitive: false).firstMatch(content);
     if (cutoffMatch != null) {
       content = content.substring(0, cutoffMatch.start);
     }
     
-    // Process line by line for better formatting
     final lines = content.split('\n');
     final formattedLines = <String>[];
     
@@ -323,7 +310,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
       line = line.trim();
       if (line.isEmpty) continue;
       
-      // Check if it's a section header
       final sectionMatch = RegExp(r'^#{1,3}\s*(.+)$').firstMatch(line);
       if (sectionMatch != null) {
         final section = sectionMatch.group(1)?.trim();
@@ -334,7 +320,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
         continue;
       }
       
-      // Check if it's a list item
       final listMatch = RegExp(r'^[-*]\s+(.+)$').firstMatch(line);
       if (listMatch != null) {
         var itemText = listMatch.group(1) ?? '';
@@ -344,7 +329,6 @@ class _UpdateDialogState extends State<UpdateDialog> {
         continue;
       }
       
-      // Check if it's a sub-item
       final subListMatch = RegExp(r'^\s+[-*]\s+(.+)$').firstMatch(line);
       if (subListMatch != null) {
         var itemText = subListMatch.group(1) ?? '';
@@ -401,7 +385,6 @@ class _VersionChip extends StatelessWidget {
   }
 }
 
-/// Show update dialog
 Future<void> showUpdateDialog(
   BuildContext context, {
   required UpdateInfo updateInfo,

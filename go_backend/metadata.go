@@ -92,14 +92,12 @@ func EmbedMetadata(filePath string, metadata Metadata, coverPath string) error {
 		f.Meta = append(f.Meta, &cmtBlock)
 	}
 
-	// Add cover art if provided
 	if coverPath != "" {
 		if fileExists(coverPath) {
 			coverData, err := os.ReadFile(coverPath)
 			if err != nil {
 				fmt.Printf("[Metadata] Warning: Failed to read cover file %s: %v\n", coverPath, err)
 			} else {
-				// Remove existing picture blocks first (like PC version)
 				for i := len(f.Meta) - 1; i >= 0; i-- {
 					if f.Meta[i].Type == flac.Picture {
 						f.Meta = append(f.Meta[:i], f.Meta[i+1:]...)
@@ -137,7 +135,6 @@ func EmbedMetadataWithCoverData(filePath string, metadata Metadata, coverData []
 		return fmt.Errorf("failed to parse FLAC file: %w", err)
 	}
 
-	// Find or create vorbis comment block
 	var cmtIdx int = -1
 	var cmt *flacvorbis.MetaDataBlockVorbisComment
 
@@ -196,9 +193,7 @@ func EmbedMetadataWithCoverData(filePath string, metadata Metadata, coverData []
 		f.Meta = append(f.Meta, &cmtBlock)
 	}
 
-	// Add cover art if provided
 	if len(coverData) > 0 {
-		// Remove existing picture blocks first
 		for i := len(f.Meta) - 1; i >= 0; i-- {
 			if f.Meta[i].Type == flac.Picture {
 				f.Meta = append(f.Meta[:i], f.Meta[i+1:]...)
@@ -220,7 +215,6 @@ func EmbedMetadataWithCoverData(filePath string, metadata Metadata, coverData []
 		}
 	}
 
-	// Save file
 	return f.Save(filePath)
 }
 
@@ -257,7 +251,6 @@ func ReadMetadata(filePath string) (*Metadata, error) {
 			if trackNum != "" {
 				fmt.Sscanf(trackNum, "%d", &metadata.TrackNumber)
 			}
-			// Also try lowercase variant (some encoders use lowercase)
 			if metadata.TrackNumber == 0 {
 				trackNum = getComment(cmt, "TRACK")
 				if trackNum != "" {
@@ -269,7 +262,6 @@ func ReadMetadata(filePath string) (*Metadata, error) {
 			if discNum != "" {
 				fmt.Sscanf(discNum, "%d", &metadata.DiscNumber)
 			}
-			// Also try DISC variant
 			if metadata.DiscNumber == 0 {
 				discNum = getComment(cmt, "DISC")
 				if discNum != "" {
@@ -277,7 +269,6 @@ func ReadMetadata(filePath string) (*Metadata, error) {
 				}
 			}
 
-			// Try DATE variants
 			if metadata.Date == "" {
 				metadata.Date = getComment(cmt, "YEAR")
 			}
@@ -293,7 +284,6 @@ func setComment(cmt *flacvorbis.MetaDataBlockVorbisComment, key, value string) {
 	if value == "" {
 		return
 	}
-	// Remove existing (case-insensitive comparison for Vorbis comments)
 	keyUpper := strings.ToUpper(key)
 	for i := len(cmt.Comments) - 1; i >= 0; i-- {
 		comment := cmt.Comments[i]
@@ -305,7 +295,6 @@ func setComment(cmt *flacvorbis.MetaDataBlockVorbisComment, key, value string) {
 			}
 		}
 	}
-	// Add new
 	cmt.Comments = append(cmt.Comments, key+"="+value)
 }
 
@@ -313,7 +302,6 @@ func getComment(cmt *flacvorbis.MetaDataBlockVorbisComment, key string) string {
 	keyUpper := strings.ToUpper(key) + "="
 	for _, comment := range cmt.Comments {
 		if len(comment) > len(key) {
-			// Case-insensitive comparison for Vorbis comments
 			commentUpper := strings.ToUpper(comment[:len(key)+1])
 			if commentUpper == keyUpper {
 				return comment[len(key)+1:]

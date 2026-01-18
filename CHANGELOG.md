@@ -5,10 +5,13 @@
 ### Added
 
 - **New Languages**: Added Spanish (es) and Portuguese (pt) translations
+  - Spanish: Credits 125 ([@credits125](https://crowdin.com/profile/credits125))
+  - Portuguese: Pedro Marcondes ([@justapedro](https://crowdin.com/profile/justapedro))
+  - Russian: Владислав ([@odinokiy_kot](https://crowdin.com/profile/odinokiy_kot))
 
-- **Quick Search Provider Switcher**: Dropdown menu in search bar for instant provider switching
+- **Quick Search Provider Switcher** ([#76](https://github.com/zarzet/SpotiFLAC-Mobile/issues/76)): Dropdown menu in search bar for instant provider switching
   - Tap the search icon to reveal a dropdown menu with all available search providers
-  - Shows default provider (Deezer/Spotify based on metadata source setting) at the top
+  - Shows default provider (Deezer based on metadata source setting) at the top
   - Lists all enabled extensions with custom search capability
   - Displays extension icons when available
   - Checkmark indicates currently selected provider
@@ -16,13 +19,18 @@
   - Re-triggers search automatically if there's existing text in the search bar
   - Eliminates need to navigate to Settings > Extensions > Search Provider
 
-- **Genre & Label Metadata**: Downloaded tracks now include genre and record label information
+- **Extension Button Setting Type** ([#74](https://github.com/zarzet/SpotiFLAC-Mobile/issues/74)): New setting type for extension actions
+  - Extensions can define `button` type in manifest settings
+  - Triggers JavaScript function when tapped (e.g., start OAuth flow)
+  - Useful for authentication, manual sync, or any custom action
+
+- **Genre & Label Metadata** ([#75](https://github.com/zarzet/SpotiFLAC-Mobile/issues/75)): Downloaded tracks now include genre and record label information
   - Fetches genre and label from Deezer album API for each track
   - Embeds GENRE, ORGANIZATION (label), and COPYRIGHT tags into FLAC files
   - Works automatically when Deezer track ID is available (via ISRC matching)
   - Supports all download services (Tidal, Qobuz, Amazon) and extension downloads
 
-- **MP3 Quality Option**: Optional MP3 download format with FLAC-to-MP3 conversion
+- **MP3 Quality Option** ([#69](https://github.com/zarzet/SpotiFLAC-Mobile/issues/69)): Optional MP3 download format with FLAC-to-MP3 conversion
   - New "Enable MP3 Option" toggle in Settings > Download > Audio Quality
   - When enabled, MP3 (320kbps) appears as a quality option alongside FLAC options
   - Available in both the quality picker dialog and default quality settings
@@ -44,7 +52,7 @@
   - Larger shadow and rounded corners (20px radius)
   - Higher resolution cover caching
 
-- **Spotify-style Sticky Title**: Title appears in AppBar when scrolling past the info card
+- **Sticky Title**: Title appears in AppBar when scrolling past the info card
   - Smooth fade-in animation (200ms) when scrolling down
   - Title hidden when header is expanded (shows in info card instead)
   - AppBar uses theme color (surface) for clean, native look
@@ -54,13 +62,13 @@
   - Extracted from first track's artist metadata
   - Styled with `onSurfaceVariant` color for visual hierarchy
 
-- **Disc Separation for Multi-Disc Albums**: Downloaded albums with multiple discs now display tracks grouped by disc
+- **Disc Separation for Multi-Disc Albums** ([#70](https://github.com/zarzet/SpotiFLAC-Mobile/issues/70)): Downloaded albums with multiple discs now display tracks grouped by disc
   - Visual disc separator header showing "Disc 1", "Disc 2", etc.
   - Tracks sorted by disc number first, then by track number
   - Single-disc albums display normally without separators
   - Fixes confusion when albums have duplicate track numbers across discs
 
-- **Album Grouping in Recents**: Downloads now show as albums instead of individual tracks in the Recent section
+- **Album Grouping in Recents** ([#70](https://github.com/zarzet/SpotiFLAC-Mobile/issues/70)): Downloads now show as albums instead of individual tracks in the Recent section
   - Prevents flooding the recents list when downloading full albums
   - Groups tracks by album name and artist
   - Tapping navigates directly to the downloaded album screen
@@ -76,7 +84,7 @@
 - **Sticky Header Theme Integration**: AppBar background uses `colorScheme.surface` instead of dominant color when collapsed
   - Dark theme: Black background with white text
   - Light theme: White background with black text
-  - Matches Spotify's behavior for better readability
+  - Matches modern app behavior for better readability
 
 ### Fixed
 

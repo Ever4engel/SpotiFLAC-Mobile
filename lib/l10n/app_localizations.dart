@@ -2615,6 +2615,60 @@ abstract class AppLocalizations {
   /// Settings section header
   ///
   /// In en, this message translates to:
+  /// **'Lyrics'**
+  String get sectionLyrics;
+
+  /// Setting - how to save lyrics
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics Mode'**
+  String get lyricsMode;
+
+  /// Lyrics mode picker description
+  ///
+  /// In en, this message translates to:
+  /// **'Choose how lyrics are saved with your downloads'**
+  String get lyricsModeDescription;
+
+  /// Lyrics mode option - embed in audio file
+  ///
+  /// In en, this message translates to:
+  /// **'Embed in file'**
+  String get lyricsModeEmbed;
+
+  /// Subtitle for embed option
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics stored inside FLAC metadata'**
+  String get lyricsModeEmbedSubtitle;
+
+  /// Lyrics mode option - separate LRC file
+  ///
+  /// In en, this message translates to:
+  /// **'External .lrc file'**
+  String get lyricsModeExternal;
+
+  /// Subtitle for external option
+  ///
+  /// In en, this message translates to:
+  /// **'Separate .lrc file for players like Samsung Music'**
+  String get lyricsModeExternalSubtitle;
+
+  /// Lyrics mode option - embed and external
+  ///
+  /// In en, this message translates to:
+  /// **'Both'**
+  String get lyricsModeBoth;
+
+  /// Subtitle for both option
+  ///
+  /// In en, this message translates to:
+  /// **'Embed and save .lrc file'**
+  String get lyricsModeBothSubtitle;
+
+  /// Settings section header
+  ///
+  /// In en, this message translates to:
   /// **'Color'**
   String get sectionColor;
 

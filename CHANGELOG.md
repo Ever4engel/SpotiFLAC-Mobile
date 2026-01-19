@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.1.3] - 2026-01-19
+
+### Added
+
+- **External LRC Lyrics File Support**: Option to save lyrics as separate .lrc files for compatibility with external music players
+  - New "Lyrics Mode" setting in Settings > Download > Lyrics section
+  - Three modes available:
+    - **Embed in file** (default): Lyrics stored inside FLAC metadata
+    - **External .lrc file**: Save lyrics as separate .lrc file next to audio file
+    - **Both**: Embed and save external .lrc file
+  - Perfect for players like Samsung Music that prefer external .lrc files
+  - LRC files include metadata headers (title, artist, by:SpotiFLAC-Mobile)
+  - Works with all download services (Tidal, Qobuz, Amazon)
+
 ## [3.1.2] - 2026-01-19
 
 ### Added

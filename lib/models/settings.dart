@@ -32,6 +32,7 @@ class AppSettings {
   final bool showExtensionStore; // Show Extension Store tab in navigation
   final String locale; // App language: 'system', 'en', 'id', etc.
   final bool enableMp3Option; // Enable MP3 quality option (default off, requires FFmpeg conversion)
+  final String lyricsMode; // embed, external, both - how to save lyrics
 
   const AppSettings({
     this.defaultService = 'tidal',
@@ -62,6 +63,7 @@ class AppSettings {
     this.showExtensionStore = true, // Default: show store
     this.locale = 'system', // Default: follow system language
     this.enableMp3Option = false, // Default: disabled
+    this.lyricsMode = 'embed', // Default: embed lyrics into file
   });
 
   AppSettings copyWith({
@@ -94,6 +96,7 @@ class AppSettings {
     bool? showExtensionStore,
     String? locale,
     bool? enableMp3Option,
+    String? lyricsMode,
   }) {
     return AppSettings(
       defaultService: defaultService ?? this.defaultService,
@@ -124,6 +127,7 @@ class AppSettings {
       showExtensionStore: showExtensionStore ?? this.showExtensionStore,
       locale: locale ?? this.locale,
       enableMp3Option: enableMp3Option ?? this.enableMp3Option,
+      lyricsMode: lyricsMode ?? this.lyricsMode,
     );
   }
 

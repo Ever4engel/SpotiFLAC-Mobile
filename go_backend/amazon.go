@@ -580,13 +580,32 @@ func downloadFromAmazon(req DownloadRequest) (AmazonDownloadResult, error) {
 		fmt.Printf("Warning: failed to embed metadata: %v\n", err)
 	}
 
-	// Embed lyrics from parallel fetch
+	// Handle lyrics based on LyricsMode setting
+	// Mode: "embed" (default), "external" (.lrc file), "both"
 	if req.EmbedLyrics && parallelResult != nil && parallelResult.LyricsLRC != "" {
-		GoLog("[Amazon] Embedding parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
-		if embedErr := EmbedLyrics(outputPath, parallelResult.LyricsLRC); embedErr != nil {
-			GoLog("[Amazon] Warning: failed to embed lyrics: %v\n", embedErr)
-		} else {
-			fmt.Println("[Amazon] Lyrics embedded successfully")
+		lyricsMode := req.LyricsMode
+		if lyricsMode == "" {
+			lyricsMode = "embed" // default
+		}
+
+		// Save external .lrc file if mode is "external" or "both"
+		if lyricsMode == "external" || lyricsMode == "both" {
+			GoLog("[Amazon] Saving external LRC file...\n")
+			if lrcPath, lrcErr := SaveLRCFile(outputPath, parallelResult.LyricsLRC); lrcErr != nil {
+				GoLog("[Amazon] Warning: failed to save LRC file: %v\n", lrcErr)
+			} else {
+				GoLog("[Amazon] LRC file saved: %s\n", lrcPath)
+			}
+		}
+
+		// Embed lyrics if mode is "embed" or "both"
+		if lyricsMode == "embed" || lyricsMode == "both" {
+			GoLog("[Amazon] Embedding parallel-fetched lyrics (%d lines)...\n", len(parallelResult.LyricsData.Lines))
+			if embedErr := EmbedLyrics(outputPath, parallelResult.LyricsLRC); embedErr != nil {
+				GoLog("[Amazon] Warning: failed to embed lyrics: %v\n", embedErr)
+			} else {
+				fmt.Println("[Amazon] Lyrics embedded successfully")
+			}
 		}
 	} else if req.EmbedLyrics {
 		fmt.Println("[Amazon] No lyrics available from parallel fetch")

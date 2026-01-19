@@ -37,6 +37,7 @@ AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => AppSettings(
   showExtensionStore: json['showExtensionStore'] as bool? ?? true,
   locale: json['locale'] as String? ?? 'system',
   enableMp3Option: json['enableMp3Option'] as bool? ?? false,
+  lyricsMode: json['lyricsMode'] as String? ?? 'embed',
 );
 
 Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
@@ -69,4 +70,5 @@ Map<String, dynamic> _$AppSettingsToJson(AppSettings instance) =>
       'showExtensionStore': instance.showExtensionStore,
       'locale': instance.locale,
       'enableMp3Option': instance.enableMp3Option,
+      'lyricsMode': instance.lyricsMode,
     };

@@ -6,6 +6,8 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -484,4 +486,30 @@ func simplifyTrackName(name string) string {
 	}
 
 	return strings.TrimSpace(result)
+}
+
+// SaveLRCFile saves lyrics as a .lrc file next to the audio file
+// audioFilePath: path to the audio file (e.g., /path/to/song.flac)
+// lrcContent: the LRC format lyrics content
+// Returns the path to the saved .lrc file, or error
+func SaveLRCFile(audioFilePath, lrcContent string) (string, error) {
+	if lrcContent == "" {
+		return "", fmt.Errorf("empty LRC content")
+	}
+
+	// Get the directory and base name without extension
+	dir := filepath.Dir(audioFilePath)
+	ext := filepath.Ext(audioFilePath)
+	baseName := strings.TrimSuffix(filepath.Base(audioFilePath), ext)
+
+	// Create the .lrc file path
+	lrcFilePath := filepath.Join(dir, baseName+".lrc")
+
+	// Write the LRC content to the file
+	if err := os.WriteFile(lrcFilePath, []byte(lrcContent), 0644); err != nil {
+		return "", fmt.Errorf("failed to write LRC file: %w", err)
+	}
+
+	GoLog("[Lyrics] Saved LRC file: %s\n", lrcFilePath)
+	return lrcFilePath, nil
 }

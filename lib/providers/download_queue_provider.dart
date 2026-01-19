@@ -1628,6 +1628,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           source: trackToDownload.source, // Pass extension ID that provided this track
           genre: genre,
           label: label,
+          lyricsMode: settings.lyricsMode,
         );
       } else if (state.autoFallback) {
         _log.d('Using auto-fallback mode');
@@ -1655,6 +1656,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
               trackToDownload.duration, // Duration in ms for verification
           genre: genre,
           label: label,
+          lyricsMode: settings.lyricsMode,
         );
       } else {
         result = await PlatformBridge.downloadTrack(

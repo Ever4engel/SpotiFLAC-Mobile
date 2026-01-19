@@ -1459,6 +1459,35 @@ class AppLocalizationsRu extends AppLocalizations {
   String get sectionFileSettings => 'Настройки файла';
 
   @override
+  String get sectionLyrics => 'Lyrics';
+
+  @override
+  String get lyricsMode => 'Lyrics Mode';
+
+  @override
+  String get lyricsModeDescription =>
+      'Choose how lyrics are saved with your downloads';
+
+  @override
+  String get lyricsModeEmbed => 'Embed in file';
+
+  @override
+  String get lyricsModeEmbedSubtitle => 'Lyrics stored inside FLAC metadata';
+
+  @override
+  String get lyricsModeExternal => 'External .lrc file';
+
+  @override
+  String get lyricsModeExternalSubtitle =>
+      'Separate .lrc file for players like Samsung Music';
+
+  @override
+  String get lyricsModeBoth => 'Both';
+
+  @override
+  String get lyricsModeBothSubtitle => 'Embed and save .lrc file';
+
+  @override
   String get sectionColor => 'Цвет';
 
   @override

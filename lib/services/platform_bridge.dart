@@ -133,6 +133,8 @@ class PlatformBridge {
     String? genre,
     String? label,
     String? copyright,
+    // Lyrics mode: "embed" (default), "external" (.lrc file), "both"
+    String lyricsMode = 'embed',
   }) async {
     _log.i('downloadWithFallback: "$trackName" by $artistName (preferred: $preferredService)');
     final request = jsonEncode({
@@ -159,6 +161,8 @@ class PlatformBridge {
       'genre': genre ?? '',
       'label': label ?? '',
       'copyright': copyright ?? '',
+      // Lyrics mode
+      'lyrics_mode': lyricsMode,
     });
     
     final result = await _channel.invokeMethod('downloadWithFallback', request);
@@ -658,6 +662,8 @@ class PlatformBridge {
     String? source, // Extension ID that provided this track (prioritize this extension)
     String? genre,
     String? label,
+    // Lyrics mode: "embed" (default), "external" (.lrc file), "both"
+    String lyricsMode = 'embed',
   }) async {
     _log.i('downloadWithExtensions: "$trackName" by $artistName${source != null ? ' (source: $source)' : ''}');
     final request = jsonEncode({
@@ -682,6 +688,8 @@ class PlatformBridge {
       'source': source ?? '', // Extension ID that provided this track
       'genre': genre ?? '',
       'label': label ?? '',
+      // Lyrics mode
+      'lyrics_mode': lyricsMode,
     });
     
     final result = await _channel.invokeMethod('downloadWithExtensions', request);

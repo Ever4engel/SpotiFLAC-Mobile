@@ -161,6 +161,8 @@ type DownloadRequest struct {
 	TidalID  string `json:"tidal_id,omitempty"`
 	QobuzID  string `json:"qobuz_id,omitempty"`
 	DeezerID string `json:"deezer_id,omitempty"`
+	// Lyrics mode: "embed" (default), "external" (.lrc file), "both"
+	LyricsMode string `json:"lyrics_mode,omitempty"`
 }
 
 // DownloadResponse represents the result of a download

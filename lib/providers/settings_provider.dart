@@ -92,6 +92,14 @@ class SettingsNotifier extends Notifier<AppSettings> {
     _saveSettings();
   }
 
+  void setLyricsMode(String mode) {
+    // Valid modes: embed, external, both
+    if (mode == 'embed' || mode == 'external' || mode == 'both') {
+      state = state.copyWith(lyricsMode: mode);
+      _saveSettings();
+    }
+  }
+
   void setMaxQualityCover(bool enabled) {
     state = state.copyWith(maxQualityCover: enabled);
     _saveSettings();

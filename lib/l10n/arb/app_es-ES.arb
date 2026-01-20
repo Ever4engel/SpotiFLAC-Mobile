@@ -127,6 +127,10 @@
   "@historyNoSinglesSubtitle": {
     "description": "Empty state subtitle for singles filter"
   },
+  "historySearchHint": "Buscar en historial...",
+  "@historySearchHint": {
+    "description": "Search bar placeholder in history"
+  },
   "settingsTitle": "Ajustes",
   "@settingsTitle": {
     "description": "Settings screen title"
@@ -547,6 +551,26 @@
   "aboutFeatureRequestSubtitle": "Sugerir nuevas funciones para la aplicación",
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
+  },
+  "aboutTelegramChannel": "Canal de Telegram",
+  "@aboutTelegramChannel": {
+    "description": "Link to Telegram channel"
+  },
+  "aboutTelegramChannelSubtitle": "Anuncios y actualizaciones",
+  "@aboutTelegramChannelSubtitle": {
+    "description": "Subtitle for Telegram channel"
+  },
+  "aboutTelegramChat": "Comunidad de Telegram",
+  "@aboutTelegramChat": {
+    "description": "Link to Telegram chat group"
+  },
+  "aboutTelegramChatSubtitle": "Chatear con otros usuarios",
+  "@aboutTelegramChatSubtitle": {
+    "description": "Subtitle for Telegram chat"
+  },
+  "aboutSocial": "Redes sociales",
+  "@aboutSocial": {
+    "description": "Section for social links"
   },
   "aboutSupport": "Soporte",
   "@aboutSupport": {
@@ -1126,6 +1150,15 @@
     "description": "Dialog title - import CSV playlist"
   },
   "dialogImportPlaylistMessage": "Se han encontrado pistas {count} en CSV. ¿Añadirlas para descargar la cola?",
+  "csvImportTracks": "{count} pistas de CSV",
+  "@csvImportTracks": {
+    "description": "Label shown in quality picker for CSV import",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "@dialogImportPlaylistMessage": {
     "description": "Dialog message - import playlist confirmation",
     "placeholders": {
@@ -1855,6 +1888,42 @@
   "@sectionFileSettings": {
     "description": "Settings section header"
   },
+  "sectionLyrics": "Letras",
+  "@sectionLyrics": {
+    "description": "Settings section header"
+  },
+  "lyricsMode": "Modo Letras",
+  "@lyricsMode": {
+    "description": "Setting - how to save lyrics"
+  },
+  "lyricsModeDescription": "Elige cómo se guardan las letras de tus descargas",
+  "@lyricsModeDescription": {
+    "description": "Lyrics mode picker description"
+  },
+  "lyricsModeEmbed": "Insertar en archivo",
+  "@lyricsModeEmbed": {
+    "description": "Lyrics mode option - embed in audio file"
+  },
+  "lyricsModeEmbedSubtitle": "Letras almacenadas en los metadatos FLAC",
+  "@lyricsModeEmbedSubtitle": {
+    "description": "Subtitle for embed option"
+  },
+  "lyricsModeExternal": "Archivo .lrc externo",
+  "@lyricsModeExternal": {
+    "description": "Lyrics mode option - separate LRC file"
+  },
+  "lyricsModeExternalSubtitle": "Archivo .lrc separado para reproductores como Samsung Music",
+  "@lyricsModeExternalSubtitle": {
+    "description": "Subtitle for external option"
+  },
+  "lyricsModeBoth": "Ambos",
+  "@lyricsModeBoth": {
+    "description": "Lyrics mode option - embed and external"
+  },
+  "lyricsModeBothSubtitle": "Insertar y guardar archivo .lrc",
+  "@lyricsModeBothSubtitle": {
+    "description": "Subtitle for both option"
+  },
   "sectionColor": "Colores",
   "@sectionColor": {
     "description": "Settings section header"
@@ -2000,6 +2069,18 @@
   "trackReleaseDate": "Fecha de lanzamiento",
   "@trackReleaseDate": {
     "description": "Metadata label - release date"
+  },
+  "trackGenre": "Género",
+  "@trackGenre": {
+    "description": "Metadata label - music genre"
+  },
+  "trackLabel": "Etiqueta",
+  "@trackLabel": {
+    "description": "Metadata label - record label"
+  },
+  "trackCopyright": "Derechos de autor",
+  "@trackCopyright": {
+    "description": "Metadata label - copyright information"
   },
   "trackDownloaded": "Descargado",
   "@trackDownloaded": {

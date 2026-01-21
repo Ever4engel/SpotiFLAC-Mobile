@@ -507,11 +507,13 @@ jobs:
           MESSAGE=$(cat /tmp/telegram_message.txt)
 
           # Send message first (using HTML parse mode)
+          # Use --data-urlencode for proper encoding of special chars (+, &, etc.)
+          # Use || true to ensure file uploads continue even if message fails
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d chat_id="${TELEGRAM_CHANNEL_ID}" \
-            -d text="${MESSAGE}" \
-            -d parse_mode="HTML" \
-            -d disable_web_page_preview="true"
+            --data-urlencode "chat_id=${TELEGRAM_CHANNEL_ID}" \
+            --data-urlencode "text=${MESSAGE}" \
+            --data-urlencode "parse_mode=HTML" \
+            --data-urlencode "disable_web_page_preview=true" || true
 
           # Upload arm64 APK to channel
           if [ -f "$ARM64_APK" ]; then

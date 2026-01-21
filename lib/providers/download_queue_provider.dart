@@ -193,6 +193,14 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         _historyLog.i('Migrated history from SharedPreferences to SQLite');
       }
       
+      // Migrate iOS paths if container UUID changed after app update
+      if (Platform.isIOS) {
+        final pathsMigrated = await _db.migrateIosContainerPaths();
+        if (pathsMigrated) {
+          _historyLog.i('Migrated iOS container paths after app update');
+        }
+      }
+      
       final jsonList = await _db.getAll();
       final items = jsonList
           .map((e) => DownloadHistoryItem.fromJson(e))

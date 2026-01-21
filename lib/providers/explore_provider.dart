@@ -109,6 +109,20 @@ class ExploreState {
   }
 }
 
+/// Calculate greeting based on local device time
+String _getLocalGreeting() {
+  final hour = DateTime.now().hour;
+  if (hour >= 5 && hour < 12) {
+    return 'Good morning';
+  } else if (hour >= 12 && hour < 17) {
+    return 'Good afternoon';
+  } else if (hour >= 17 && hour < 21) {
+    return 'Good evening';
+  } else {
+    return 'Good night';
+  }
+}
+
 /// Provider for explore/home feed state
 class ExploreNotifier extends Notifier<ExploreState> {
   @override
@@ -201,9 +215,14 @@ class ExploreNotifier extends Notifier<ExploreState> {
         _log.d('First item: name=${firstItem.name}, artists=${firstItem.artists}, type=${firstItem.type}');
       }
 
+      // Always use local device time for greeting to avoid timezone issues
+      // Extension greeting may use wrong timezone (UTC or Spotify account timezone)
+      final localGreeting = _getLocalGreeting();
+      _log.d('Greeting from extension: $greeting, using local: $localGreeting');
+
       state = ExploreState(
         isLoading: false,
-        greeting: greeting,
+        greeting: localGreeting,
         sections: sections,
         lastFetched: DateTime.now(),
       );

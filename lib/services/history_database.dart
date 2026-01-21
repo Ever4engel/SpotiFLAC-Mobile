@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -6,6 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 
 final _log = AppLogger('HistoryDatabase');
+
+/// Cached current iOS container path for path normalization
+String? _currentContainerPath;
 
 /// SQLite database service for download history
 /// Provides O(1) lookups by spotify_id and isrc with proper indexing
@@ -76,6 +80,106 @@ class HistoryDatabase {
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
     _log.i('Upgrading database from v$oldVersion to v$newVersion');
     // Future migrations go here
+  }
+  
+  // ==================== iOS Path Normalization ====================
+  
+  /// Pattern to match iOS container paths
+  /// Example: /var/mobile/Containers/Data/Application/UUID-HERE/Documents/...
+  static final _iosContainerPattern = RegExp(
+    r'/var/mobile/Containers/Data/Application/[A-F0-9\-]+/',
+    caseSensitive: false,
+  );
+  
+  /// Initialize and cache the current iOS container path
+  Future<void> _initContainerPath() async {
+    if (!Platform.isIOS || _currentContainerPath != null) return;
+    
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      // Extract container path up to and including the UUID folder
+      // e.g., /var/mobile/Containers/Data/Application/UUID/
+      final match = _iosContainerPattern.firstMatch(docDir.path);
+      if (match != null) {
+        _currentContainerPath = match.group(0);
+        _log.d('iOS container path: $_currentContainerPath');
+      }
+    } catch (e) {
+      _log.w('Failed to get iOS container path: $e');
+    }
+  }
+  
+  /// Normalize iOS file path by replacing old container UUID with current one
+  /// This fixes the issue where iOS changes container UUID after app updates
+  String _normalizeIosPath(String? filePath) {
+    if (filePath == null || filePath.isEmpty) return filePath ?? '';
+    if (!Platform.isIOS || _currentContainerPath == null) return filePath;
+    
+    // Check if path contains an iOS container path
+    if (_iosContainerPattern.hasMatch(filePath)) {
+      final normalized = filePath.replaceFirst(_iosContainerPattern, _currentContainerPath!);
+      if (normalized != filePath) {
+        _log.d('Normalized iOS path: $filePath -> $normalized');
+      }
+      return normalized;
+    }
+    
+    return filePath;
+  }
+  
+  /// Migrate iOS paths in database to use current container UUID
+  /// This is called once after app update if container changed
+  Future<bool> migrateIosContainerPaths() async {
+    if (!Platform.isIOS) return false;
+    
+    await _initContainerPath();
+    if (_currentContainerPath == null) return false;
+    
+    final prefs = await SharedPreferences.getInstance();
+    final lastContainer = prefs.getString('ios_last_container_path');
+    
+    // Skip if container hasn't changed
+    if (lastContainer == _currentContainerPath) {
+      _log.d('iOS container path unchanged, skipping migration');
+      return false;
+    }
+    
+    _log.i('iOS container changed: $lastContainer -> $_currentContainerPath');
+    
+    try {
+      final db = await database;
+      
+      // Get all items with iOS paths
+      final rows = await db.query('history', columns: ['id', 'file_path']);
+      int updatedCount = 0;
+      
+      for (final row in rows) {
+        final id = row['id'] as String;
+        final oldPath = row['file_path'] as String?;
+        
+        if (oldPath != null && _iosContainerPattern.hasMatch(oldPath)) {
+          final newPath = _normalizeIosPath(oldPath);
+          if (newPath != oldPath) {
+            await db.update(
+              'history',
+              {'file_path': newPath},
+              where: 'id = ?',
+              whereArgs: [id],
+            );
+            updatedCount++;
+          }
+        }
+      }
+      
+      // Save current container path
+      await prefs.setString('ios_last_container_path', _currentContainerPath!);
+      
+      _log.i('iOS path migration complete: $updatedCount paths updated');
+      return updatedCount > 0;
+    } catch (e, stack) {
+      _log.e('iOS path migration failed: $e', e, stack);
+      return false;
+    }
   }
   
   /// Migrate data from SharedPreferences to SQLite
@@ -153,6 +257,7 @@ class HistoryDatabase {
   }
   
   /// Convert DB row (snake_case) to JSON format (camelCase)
+  /// Also normalizes iOS paths if container UUID changed
   Map<String, dynamic> _dbRowToJson(Map<String, dynamic> row) {
     return {
       'id': row['id'],
@@ -161,7 +266,7 @@ class HistoryDatabase {
       'albumName': row['album_name'],
       'albumArtist': row['album_artist'],
       'coverUrl': row['cover_url'],
-      'filePath': row['file_path'],
+      'filePath': _normalizeIosPath(row['file_path'] as String?),
       'service': row['service'],
       'downloadedAt': row['downloaded_at'],
       'isrc': row['isrc'],

@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.2.1] - 2026-01-22
+
+> **Note:** Starting from the next release, version format will change from `major.minor.patch` to `year.month.day` (e.g., 26.1.23).
+
+### Fixed
+
+- **iOS History Migration**: Fixed "File not found" after updating from 3.1.x to 3.2.0 (container UUID change)
+- **Home Feed Greeting**: Fixed wrong timezone - now uses device local time instead of extension
+- **Deezer Track Position**: Fallback to index+1 when API returns 0 for track position
+- **Spanish & Portuguese Plurals**: Fixed 16 ICU syntax warnings in localization files
+
+---
+
 ## [3.2.0] - 2026-01-22
 
 > **Note:** Starting from v3.2.0, changelogs will be concise.

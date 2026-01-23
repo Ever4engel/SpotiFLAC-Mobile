@@ -2751,7 +2751,7 @@
   "@discographyDownload": {
     "description": "Button - download artist discography"
   },
-  "discographyDownloadAll": "Download All",
+  "discographyDownloadAll": "Unduh Semua",
   "@discographyDownloadAll": {
     "description": "Option - download entire discography"
   },

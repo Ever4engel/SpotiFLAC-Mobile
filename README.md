@@ -86,6 +86,14 @@ A: Yes, the app is open source and you can verify the code yourself. Each releas
 **Q: Why is download not working in my country?**  
 A: Some countries have restricted access to certain streaming service APIs. If downloads are failing, try using a VPN to connect through a different region.
 
+
+### Want to support SpotiFLAC-Mobile?
+
+_If this software is useful and brings you value, consider supporting the project by buying me a coffee. Your support helps keep development going._
+
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/zarzet) <a href="https://www.buymeacoffee.com/zarzet" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 150px !important;" ></a>
+
+
 ## Disclaimer
 
 This project is for **educational and private use only**. The developer does not condone or encourage copyright infringement.
@@ -100,3 +108,8 @@ You are solely responsible for:
 3. Any legal consequences resulting from the misuse of this tool.
 
 The software is provided "as is", without warranty of any kind. The author assumes no liability for any bans, damages, or legal issues arising from its use.
+
+
+> [!TIP]
+>
+> **Star Us**, You will receive all release notifications from GitHub without any delay ~

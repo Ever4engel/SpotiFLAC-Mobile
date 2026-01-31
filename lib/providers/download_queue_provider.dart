@@ -1667,6 +1667,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       );
 
       final quality = item.qualityOverride ?? state.audioQuality;
+      
+      // For MP3, we need to download FLAC first then convert
+      // Servers don't support MP3 quality directly
+      final downloadQuality = quality == 'MP3' ? 'LOSSLESS' : quality;
 
 // Fetch extended metadata (genre, label) from Deezer if available
       String? genre;
@@ -1717,7 +1721,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       if (useExtensions) {
         _log.d('Using extension providers for download');
         _log.d(
-          'Quality: $quality${item.qualityOverride != null ? ' (override)' : ''}',
+          'Quality: $quality${item.qualityOverride != null ? ' (override)' : ''}${quality == 'MP3' ? ' (downloading as LOSSLESS for conversion)' : ''}',
         );
         _log.d('Output dir: $outputDir');
         result = await PlatformBridge.downloadWithExtensions(
@@ -1730,7 +1734,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           coverUrl: trackToDownload.coverUrl,
           outputDir: outputDir,
           filenameFormat: state.filenameFormat,
-          quality: quality,
+          quality: downloadQuality,
           trackNumber: trackToDownload.trackNumber ?? 1,
           discNumber: trackToDownload.discNumber ?? 1,
           releaseDate: trackToDownload.releaseDate,
@@ -1744,7 +1748,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       } else if (state.autoFallback) {
         _log.d('Using auto-fallback mode');
         _log.d(
-          'Quality: $quality${item.qualityOverride != null ? ' (override)' : ''}',
+          'Quality: $quality${item.qualityOverride != null ? ' (override)' : ''}${quality == 'MP3' ? ' (downloading as LOSSLESS for conversion)' : ''}',
         );
         _log.d('Output dir: $outputDir');
         result = await PlatformBridge.downloadWithFallback(
@@ -1757,7 +1761,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           coverUrl: trackToDownload.coverUrl,
           outputDir: outputDir,
           filenameFormat: state.filenameFormat,
-          quality: quality,
+          quality: downloadQuality,
           trackNumber: trackToDownload.trackNumber ?? 1,
           discNumber: trackToDownload.discNumber ?? 1,
           releaseDate: trackToDownload.releaseDate,
@@ -1780,7 +1784,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           coverUrl: trackToDownload.coverUrl,
           outputDir: outputDir,
           filenameFormat: state.filenameFormat,
-          quality: quality,
+          quality: downloadQuality,
           trackNumber: trackToDownload.trackNumber ?? 1,
           discNumber: trackToDownload.discNumber ?? 1,
           releaseDate: trackToDownload.releaseDate,

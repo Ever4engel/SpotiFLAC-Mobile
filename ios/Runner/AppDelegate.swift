@@ -222,7 +222,8 @@ import Gobackend  // Import Go framework
             let query = args["query"] as! String
             let trackLimit = args["track_limit"] as? Int ?? 15
             let artistLimit = args["artist_limit"] as? Int ?? 3
-            let response = GobackendSearchDeezerAll(query, Int(trackLimit), Int(artistLimit), &error)
+            let filter = args["filter"] as? String ?? ""
+            let response = GobackendSearchDeezerAll(query, Int(trackLimit), Int(artistLimit), filter, &error)
             if let error = error { throw error }
             return response
 

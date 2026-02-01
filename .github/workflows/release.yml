@@ -71,7 +71,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: "1.25"
           cache-dependency-path: go_backend/go.sum
 
       # Cache Gradle for faster builds
@@ -174,7 +174,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: "1.25"
           cache-dependency-path: go_backend/go.sum
 
       # Cache CocoaPods
@@ -194,7 +194,7 @@ jobs:
         working-directory: go_backend
         run: |
           mkdir -p ../ios/Frameworks
-          gomobile bind -target=ios -o ../ios/Frameworks/Gobackend.xcframework .
+          gomobile bind -target=ios -tags ios -o ../ios/Frameworks/Gobackend.xcframework .
         env:
           CGO_ENABLED: 1
 

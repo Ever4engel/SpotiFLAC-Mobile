@@ -43,6 +43,7 @@ const (
 	SongLinkTimeout   = 30 * time.Second
 	DefaultMaxRetries = 3
 	DefaultRetryDelay = 1 * time.Second
+	Second            = time.Second // Exported for use in other files
 )
 
 // Shared transport with connection pooling to prevent TCP exhaustion

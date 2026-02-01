@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.3.0] - 2026-01-31
+## [3.3.1] - 2026-02-01
 
 ### Added
 
@@ -15,12 +15,13 @@
 
 ### Changed
 
-- **Amazon Download API**: Switched to AfkarXYZ API ([#108](https://github.com/zarzet/SpotiFLAC-Mobile/issues/108))
-- **Qobuz Download API**: Added Jumo API as fallback ([#108](https://github.com/zarzet/SpotiFLAC-Mobile/issues/108))
+- **Amazon Download API**: Switched to AfkarXYZ API
+- **Qobuz Download API**: Added Jumo API as fallback
 - **Search Results**: Reduced artist limit from 5 to 2
 
 ### Fixed
 
+- **MP3 Download Error 403**: Fixed 403 Forbidden error when downloading MP3 files ([#108](https://github.com/zarzet/SpotiFLAC-Mobile/issues/108))
 - **Opus Cover Art**: Implemented METADATA_BLOCK_PICTURE for proper cover embedding
 - **Deezer Pagination**: Fixed >25 tracks only showing first 25 ([#112](https://github.com/zarzet/SpotiFLAC-Mobile/issues/112))
 - **Duplicate Embed Lyrics Setting**: Removed from Options page ([#110](https://github.com/zarzet/SpotiFLAC-Mobile/issues/110))

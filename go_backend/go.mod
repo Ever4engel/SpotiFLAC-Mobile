@@ -1,8 +1,8 @@
 module github.com/zarz/spotiflac_android/go_backend
 
-go 1.24.0
+go 1.25.0
 
-toolchain go1.24.5
+toolchain go1.25.6
 
 require (
 	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3

@@ -1,4 +1,4 @@
-[![GitHub All Releases](https://img.shields.io/github/downloads/zarzet/SpotiFLAC-Mobile/total?style=for-the-badge)](https://github.com/zarzet/SpotiFLAC-Mobile/releases)
+[![GitHub All Releases](https://img.shields.io/github/downloads/zarzet/SpotiFLAC-Mobile/total?style=for-the-badge&refresh=1)](https://github.com/zarzet/SpotiFLAC-Mobile/releases)
 [![VirusTotal](https://img.shields.io/badge/VirusTotal-Safe-brightgreen?style=for-the-badge&logo=virustotal)](https://www.virustotal.com/gui/file/516142f029a4f3642a899832a6f600acf07040170a98c106cd03222cf584d9a3)
 [![Crowdin](https://img.shields.io/badge/HELP%20TRANSLATE%20ON-CROWDIN-%2321252b?style=for-the-badge&logo=crowdin)](https://crowdin.com/project/spotiflac-mobile)
 
@@ -84,6 +84,14 @@ A: Yes, the app is open source and you can verify the code yourself. Each releas
 **Q: Why is download not working in my country?**  
 A: Some countries have restricted access to certain streaming service APIs. If downloads are failing, try using a VPN to connect through a different region.
 
+
+### Want to support SpotiFLAC-Mobile?
+
+_If this software is useful and brings you value, consider supporting the project by buying me a coffee. Your support helps keep development going._
+
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/zarzet) <a href="https://www.buymeacoffee.com/zarzet" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 150px !important;" ></a>
+
+
 ## Disclaimer
 
 This project is for **educational and private use only**. The developer does not condone or encourage copyright infringement.
@@ -98,3 +106,8 @@ You are solely responsible for:
 3. Any legal consequences resulting from the misuse of this tool.
 
 The software is provided "as is", without warranty of any kind. The author assumes no liability for any bans, damages, or legal issues arising from its use.
+
+
+> [!TIP]
+>
+> **Star Us**, You will receive all release notifications from GitHub without any delay ~

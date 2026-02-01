@@ -2133,67 +2133,67 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String get discographyDownload => 'Unduh Diskografi';
+  String get discographyDownload => 'Download Discography';
 
   @override
   String get discographyDownloadAll => 'Unduh Semua';
 
   @override
   String discographyDownloadAllSubtitle(int count, int albumCount) {
-    return '$count lagu dari $albumCount rilis';
+    return '$count tracks from $albumCount releases';
   }
 
   @override
-  String get discographyAlbumsOnly => 'Album Saja';
+  String get discographyAlbumsOnly => 'Albums Only';
 
   @override
   String discographyAlbumsOnlySubtitle(int count, int albumCount) {
-    return '$count lagu dari $albumCount album';
+    return '$count tracks from $albumCount albums';
   }
 
   @override
-  String get discographySinglesOnly => 'Single & EP Saja';
+  String get discographySinglesOnly => 'Singles & EPs Only';
 
   @override
   String discographySinglesOnlySubtitle(int count, int albumCount) {
-    return '$count lagu dari $albumCount single';
+    return '$count tracks from $albumCount singles';
   }
 
   @override
-  String get discographySelectAlbums => 'Pilih Album...';
+  String get discographySelectAlbums => 'Select Albums...';
 
   @override
   String get discographySelectAlbumsSubtitle =>
-      'Pilih album atau single tertentu';
+      'Choose specific albums or singles';
 
   @override
-  String get discographyFetchingTracks => 'Mengambil lagu...';
+  String get discographyFetchingTracks => 'Fetching tracks...';
 
   @override
   String discographyFetchingAlbum(int current, int total) {
-    return 'Mengambil $current dari $total...';
+    return 'Fetching $current of $total...';
   }
 
   @override
   String discographySelectedCount(int count) {
-    return '$count dipilih';
+    return '$count selected';
   }
 
   @override
-  String get discographyDownloadSelected => 'Unduh yang Dipilih';
+  String get discographyDownloadSelected => 'Download Selected';
 
   @override
   String discographyAddedToQueue(int count) {
-    return 'Menambahkan $count lagu ke antrian';
+    return 'Added $count tracks to queue';
   }
 
   @override
   String discographySkippedDownloaded(int added, int skipped) {
-    return '$added ditambahkan, $skipped sudah diunduh';
+    return '$added added, $skipped already downloaded';
   }
 
   @override
-  String get discographyNoAlbums => 'Tidak ada album tersedia';
+  String get discographyNoAlbums => 'No albums available';
 
   @override
   String get discographyFailedToFetch => 'Gagal mengambil beberapa album';

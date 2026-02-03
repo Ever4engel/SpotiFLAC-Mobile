@@ -334,6 +334,35 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
               ),
             ),
 
+            // Download Network Mode
+            SliverToBoxAdapter(
+              child: SettingsSectionHeader(title: context.l10n.sectionDownload),
+            ),
+            SliverToBoxAdapter(
+              child: SettingsGroup(
+                children: [
+                  SettingsItem(
+                    icon: Icons.wifi,
+                    title: context.l10n.settingsDownloadNetwork,
+                    subtitle: settings.downloadNetworkMode == 'wifi_only'
+                        ? context.l10n.settingsDownloadNetworkWifiOnly
+                        : context.l10n.settingsDownloadNetworkAny,
+                    onTap: () => _showNetworkModePicker(context, ref, settings.downloadNetworkMode),
+                  ),
+                  SettingsSwitchItem(
+                    icon: Icons.file_download_outlined,
+                    title: context.l10n.settingsAutoExportFailed,
+                    subtitle: context.l10n.settingsAutoExportFailedSubtitle,
+                    value: settings.autoExportFailedDownloads,
+                    onChanged: (value) {
+                      ref.read(settingsProvider.notifier).setAutoExportFailedDownloads(value);
+                    },
+                    showDivider: false,
+                  ),
+                ],
+              ),
+            ),
+
             // All Files Access section (Android 13+ only)
             if (Platform.isAndroid && _androidSdkVersion >= 33) ...[
               SliverToBoxAdapter(
@@ -386,69 +415,6 @@ class _DownloadSettingsPageState extends ConsumerState<DownloadSettingsPage> {
                 ),
               ),
 ],
-
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
-            
-            // Auto Export Failed Downloads
-            SliverToBoxAdapter(
-              child: SettingsGroup(
-                children: [
-                  SettingsSwitchItem(
-                    icon: Icons.file_download_outlined,
-                    title: context.l10n.settingsAutoExportFailed,
-                    subtitle: context.l10n.settingsAutoExportFailedSubtitle,
-                    value: settings.autoExportFailedDownloads,
-                    onChanged: (value) {
-                      ref.read(settingsProvider.notifier).setAutoExportFailedDownloads(value);
-                    },
-                    showDivider: false,
-                  ),
-                ],
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-            // Download Network Mode
-            SliverToBoxAdapter(
-              child: SettingsGroup(
-                children: [
-                  SettingsItem(
-                    icon: Icons.wifi,
-                    title: context.l10n.settingsDownloadNetwork,
-                    subtitle: settings.downloadNetworkMode == 'wifi_only'
-                        ? context.l10n.settingsDownloadNetworkWifiOnly
-                        : context.l10n.settingsDownloadNetworkAny,
-                    onTap: () => _showNetworkModePicker(context, ref, settings.downloadNetworkMode),
-                    showDivider: false,
-                  ),
-                ],
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        context.l10n.settingsDownloadNetworkSubtitle,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],

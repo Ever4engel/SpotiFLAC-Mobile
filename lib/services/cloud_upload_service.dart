@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:webdav_client/webdav_client.dart' as webdav;
 import 'package:dartssh2/dartssh2.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 
 /// Result of a cloud upload operation
@@ -43,10 +45,15 @@ class CloudUploadService {
   CloudUploadService._();
 
   final LogBuffer _log = LogBuffer();
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
   webdav.Client? _webdavClient;
   String? _currentServerUrl;
   String? _currentUsername;
+  String? _currentPassword;
+
+  static const _sftpHostKeysKey = 'sftp_known_host_keys';
+  Map<String, Map<String, String>>? _knownHostKeys;
 
   void _logInfo(String tag, String message) {
     _log.add(LogEntry(
@@ -71,16 +78,26 @@ class CloudUploadService {
   // WebDAV Methods
   // ============================================================
 
+  bool _isHttpsUrl(String url) {
+    final uri = Uri.tryParse(url);
+    return uri != null && uri.scheme == 'https';
+  }
+
   /// Initialize WebDAV client with server credentials
   Future<void> initializeWebDAV({
     required String serverUrl,
     required String username,
     required String password,
   }) async {
+    if (!_isHttpsUrl(serverUrl)) {
+      throw ArgumentError('WebDAV URL must use https');
+    }
+
     // Reuse existing client if credentials haven't changed
     if (_webdavClient != null && 
         _currentServerUrl == serverUrl && 
-        _currentUsername == username) {
+        _currentUsername == username &&
+        _currentPassword == password) {
       return;
     }
 
@@ -93,6 +110,7 @@ class CloudUploadService {
 
     _currentServerUrl = serverUrl;
     _currentUsername = username;
+    _currentPassword = password;
 
     _logInfo('CloudUpload', 'WebDAV client initialized for $serverUrl');
   }
@@ -103,6 +121,9 @@ class CloudUploadService {
     required String username,
     required String password,
   }) async {
+    if (!_isHttpsUrl(serverUrl)) {
+      return CloudUploadResult.failure('WebDAV URL must use https.');
+    }
     try {
       final client = webdav.newClient(
         serverUrl,
@@ -131,6 +152,9 @@ class CloudUploadService {
     required String password,
     void Function(int sent, int total)? onProgress,
   }) async {
+    if (!_isHttpsUrl(serverUrl)) {
+      return CloudUploadResult.failure('WebDAV URL must use https.');
+    }
     try {
       // Initialize client if needed
       await initializeWebDAV(
@@ -266,6 +290,12 @@ class CloudUploadService {
         socket,
         username: username,
         onPasswordRequest: () => password,
+        onVerifyHostKey: (type, fingerprint) => _verifySftpHostKey(
+          host: serverInfo.host,
+          port: serverInfo.port,
+          type: type,
+          fingerprint: fingerprint,
+        ),
       );
       
       // Wait for authentication
@@ -273,7 +303,7 @@ class CloudUploadService {
       
       // Test SFTP subsystem
       final sftp = await client.sftp();
-      await sftp.listdir('/');
+      await sftp.listdir('.');
       sftp.close();
       
       _logInfo('CloudUpload', 'SFTP connection test successful: ${serverInfo.host}');
@@ -318,6 +348,12 @@ class CloudUploadService {
         socket,
         username: username,
         onPasswordRequest: () => password,
+        onVerifyHostKey: (type, fingerprint) => _verifySftpHostKey(
+          host: serverInfo.host,
+          port: serverInfo.port,
+          type: type,
+          fingerprint: fingerprint,
+        ),
       );
       
       // Wait for authentication
@@ -368,10 +404,16 @@ class CloudUploadService {
   /// Ensure a directory exists on the SFTP server, creating it if necessary
   Future<void> _ensureSFTPDirectoryExists(SftpClient sftp, String path) async {
     final parts = path.split('/').where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return;
+    final isAbsolute = path.startsWith('/');
     var currentPath = '';
 
     for (final part in parts) {
-      currentPath += '/$part';
+      if (currentPath.isEmpty) {
+        currentPath = isAbsolute ? '/$part' : part;
+      } else {
+        currentPath += '/$part';
+      }
       try {
         await sftp.mkdir(currentPath);
       } catch (e) {
@@ -465,5 +507,117 @@ class CloudUploadService {
     _webdavClient = null;
     _currentServerUrl = null;
     _currentUsername = null;
+    _currentPassword = null;
+  }
+
+  Future<bool> clearSftpHostKey({required String serverUrl}) async {
+    final serverInfo = _parseSftpUrl(serverUrl);
+    final knownHostKeys = await _loadKnownHostKeys();
+    final keyId = '${serverInfo.host}:${serverInfo.port}';
+
+    final removed = knownHostKeys.remove(keyId) != null;
+    if (removed) {
+      await _saveKnownHostKeys();
+      _logInfo('CloudUpload', 'Cleared SFTP host key for $keyId');
+    }
+    return removed;
+  }
+
+  Future<int> clearAllSftpHostKeys() async {
+    final knownHostKeys = await _loadKnownHostKeys();
+    final count = knownHostKeys.length;
+    if (count == 0) {
+      return 0;
+    }
+
+    knownHostKeys.clear();
+    await _saveKnownHostKeys();
+    _logInfo('CloudUpload', 'Cleared all SFTP host keys');
+    return count;
+  }
+
+  Future<Map<String, Map<String, String>>> _loadKnownHostKeys() async {
+    if (_knownHostKeys != null) {
+      return _knownHostKeys!;
+    }
+
+    final prefs = await _prefs;
+    final raw = prefs.getString(_sftpHostKeysKey);
+    if (raw == null || raw.isEmpty) {
+      _knownHostKeys = <String, Map<String, String>>{};
+      return _knownHostKeys!;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        final map = <String, Map<String, String>>{};
+        decoded.forEach((key, value) {
+          if (value is Map) {
+            final type = value['type'];
+            final fingerprint = value['fingerprint'];
+            if (type is String && fingerprint is String) {
+              map[key] = {'type': type, 'fingerprint': fingerprint};
+            }
+          }
+        });
+        _knownHostKeys = map;
+        return map;
+      }
+    } catch (e) {
+      _logError('CloudUpload', 'Failed to parse known host keys', e.toString());
+    }
+
+    _knownHostKeys = <String, Map<String, String>>{};
+    return _knownHostKeys!;
+  }
+
+  Future<void> _saveKnownHostKeys() async {
+    if (_knownHostKeys == null) return;
+    final prefs = await _prefs;
+    await prefs.setString(_sftpHostKeysKey, jsonEncode(_knownHostKeys));
+  }
+
+  String _formatFingerprint(Uint8List fingerprint) {
+    final buffer = StringBuffer();
+    for (var i = 0; i < fingerprint.length; i++) {
+      if (i > 0) buffer.write(':');
+      buffer.write(fingerprint[i].toRadixString(16).padLeft(2, '0'));
+    }
+    return buffer.toString();
+  }
+
+  Future<bool> _verifySftpHostKey({
+    required String host,
+    required int port,
+    required String type,
+    required Uint8List fingerprint,
+  }) async {
+    final knownHostKeys = await _loadKnownHostKeys();
+    final keyId = '$host:$port';
+    final fingerprintHex = _formatFingerprint(fingerprint);
+    final existing = knownHostKeys[keyId];
+
+    if (existing == null) {
+      knownHostKeys[keyId] = {
+        'type': type,
+        'fingerprint': fingerprintHex,
+      };
+      await _saveKnownHostKeys();
+      _logInfo('CloudUpload', 'Saved new SFTP host key for $keyId');
+      return true;
+    }
+
+    final existingFingerprint = existing['fingerprint'];
+    if (existingFingerprint == fingerprintHex) {
+      return true;
+    }
+
+    _logError(
+      'CloudUpload',
+      'SFTP host key mismatch for $keyId',
+      'expected=$existingFingerprint got=$fingerprintHex',
+    );
+    return false;
   }
 }

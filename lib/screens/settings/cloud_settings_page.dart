@@ -19,6 +19,8 @@ class _CloudSettingsPageState extends ConsumerState<CloudSettingsPage> {
   late TextEditingController _passwordController;
   late TextEditingController _remotePathController;
   bool _isTestingConnection = false;
+  bool _isResettingHostKey = false;
+  bool _isResettingAllHostKeys = false;
   String? _connectionTestResult;
 
   @override
@@ -220,6 +222,42 @@ class _CloudSettingsPageState extends ConsumerState<CloudSettingsPage> {
                     ),
                   ),
                 ),
+                if (settings.cloudProvider == 'sftp')
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      child: OutlinedButton.icon(
+                        onPressed: (_isResettingHostKey || settings.cloudServerUrl.isEmpty)
+                            ? null
+                            : _resetSftpHostKey,
+                        icon: _isResettingHostKey
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.security),
+                        label: Text(context.l10n.cloudSettingsResetSftpHostKey),
+                      ),
+                    ),
+                  ),
+                if (settings.cloudProvider == 'sftp')
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      child: OutlinedButton.icon(
+                        onPressed: _isResettingAllHostKeys ? null : _resetAllSftpHostKeys,
+                        icon: _isResettingAllHostKeys
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.delete_sweep),
+                        label: Text(context.l10n.cloudSettingsResetAllSftpHostKeys),
+                      ),
+                    ),
+                  ),
 
                 // Connection Test Result
                 if (_connectionTestResult != null)
@@ -431,6 +469,101 @@ class _CloudSettingsPageState extends ConsumerState<CloudSettingsPage> {
         _connectionTestResult = 'Error: No provider selected';
       });
     }
+  }
+
+  Future<void> _resetSftpHostKey() async {
+    final settings = ref.read(settingsProvider);
+    if (settings.cloudServerUrl.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.cloudSettingsServerUrlRequired)),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(context.l10n.cloudSettingsResetSftpHostKey),
+          content: Text(context.l10n.cloudSettingsResetSftpHostKeyMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(context.l10n.dialogCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(context.l10n.cloudSettingsResetConfirm),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _isResettingHostKey = true;
+    });
+
+    final cleared = await CloudUploadService.instance.clearSftpHostKey(
+      serverUrl: settings.cloudServerUrl,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isResettingHostKey = false;
+    });
+
+    final message = cleared
+        ? context.l10n.cloudSettingsResetSftpHostKeySuccess
+        : context.l10n.cloudSettingsResetSftpHostKeyNotFound;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _resetAllSftpHostKeys() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(context.l10n.cloudSettingsResetAllSftpHostKeys),
+          content: Text(context.l10n.cloudSettingsResetAllSftpHostKeysMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(context.l10n.dialogCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(context.l10n.cloudSettingsResetAllConfirm),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _isResettingAllHostKeys = true;
+    });
+
+    final clearedCount = await CloudUploadService.instance.clearAllSftpHostKeys();
+
+    if (!mounted) return;
+    setState(() {
+      _isResettingAllHostKeys = false;
+    });
+
+    final message = clearedCount > 0
+        ? context.l10n.cloudSettingsResetAllSftpHostKeysCleared(clearedCount)
+        : context.l10n.cloudSettingsResetAllSftpHostKeysNone;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   Widget _buildUploadQueueSection(BuildContext context) {

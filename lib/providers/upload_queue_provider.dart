@@ -142,9 +142,14 @@ class UploadQueueNotifier extends Notifier<UploadQueueState> {
     _isProcessing = true;
     state = state.copyWith(isProcessing: true);
 
-    final settings = ref.read(settingsProvider);
-
     while (true) {
+      final settings = ref.read(settingsProvider);
+
+      // Stop processing if cloud upload is disabled or provider is unset
+      if (!settings.cloudUploadEnabled || settings.cloudProvider == 'none') {
+        break;
+      }
+
       // Find next pending item
       final pendingIndex = state.items.indexWhere(
         (i) => i.status == UploadStatus.pending,

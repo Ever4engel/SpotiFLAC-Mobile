@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sync"
@@ -214,6 +215,10 @@ func (s *ExtensionStore) FetchRegistry(forceRefresh bool) (*StoreRegistry, error
 		return s.cache, nil
 	}
 
+	if err := requireHTTPSURL(s.registryURL, "registry"); err != nil {
+		return nil, err
+	}
+
 	LogInfo("ExtensionStore", "Fetching registry from %s", s.registryURL)
 
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -303,6 +308,10 @@ func (s *ExtensionStore) DownloadExtension(extensionID string, destPath string) 
 		return fmt.Errorf("extension %s not found in store", extensionID)
 	}
 
+	if err := requireHTTPSURL(ext.getDownloadURL(), "extension download"); err != nil {
+		return err
+	}
+
 	LogInfo("ExtensionStore", "Downloading %s from %s", ext.getDisplayName(), ext.getDownloadURL())
 
 	client := &http.Client{Timeout: 5 * time.Minute}
@@ -329,6 +338,20 @@ func (s *ExtensionStore) DownloadExtension(extensionID string, destPath string) 
 	}
 
 	LogInfo("ExtensionStore", "Downloaded %s to %s", ext.getDisplayName(), destPath)
+	return nil
+}
+
+func requireHTTPSURL(rawURL string, context string) error {
+	if rawURL == "" {
+		return fmt.Errorf("%s URL is empty", context)
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Host == "" {
+		return fmt.Errorf("%s URL is invalid: %s", context, rawURL)
+	}
+	if parsed.Scheme != "https" {
+		return fmt.Errorf("%s URL must use https: %s", context, rawURL)
+	}
 	return nil
 }
 

@@ -26,6 +26,13 @@ func (r *ExtensionRuntime) validateDomain(urlStr string) error {
 		return fmt.Errorf("invalid URL: %w", err)
 	}
 
+	if parsed.Scheme == "" {
+		return fmt.Errorf("invalid URL: scheme is required")
+	}
+	if parsed.Scheme != "https" {
+		return fmt.Errorf("network access denied: only https is allowed")
+	}
+
 	domain := parsed.Hostname()
 
 	// Block private/local network access (SSRF protection)

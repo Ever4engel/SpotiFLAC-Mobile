@@ -67,7 +67,7 @@
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<true/>
+		<false/>
 	</dict>
 	
 	<!-- File Sharing - Allow access via Files app -->

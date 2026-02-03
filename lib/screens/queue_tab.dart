@@ -92,7 +92,7 @@ class UnifiedLibraryItem {
   bool get hasCover => coverUrl != null || (localCoverPath != null && localCoverPath!.isNotEmpty);
 
   String get searchKey => '${trackName.toLowerCase()}|${artistName.toLowerCase()}|${albumName.toLowerCase()}';
-  String get albumKey => '$albumName|$artistName';
+  String get albumKey => '${albumName.toLowerCase()}|${artistName.toLowerCase()}';
 }
 
 class _GroupedAlbum {
@@ -163,6 +163,22 @@ class _HistoryStats {
   int get totalSingleTracks => singleTracks + localSingleTracks;
 }
 
+class _UnifiedCacheEntry {
+  final List<DownloadHistoryItem> historyItems;
+  final List<LocalLibraryItem> localItems;
+  final Map<String, int> localAlbumCounts;
+  final String query;
+  final List<UnifiedLibraryItem> items;
+
+  const _UnifiedCacheEntry({
+    required this.historyItems,
+    required this.localItems,
+    required this.localAlbumCounts,
+    required this.query,
+    required this.items,
+  });
+}
+
 Map<String, List<String>> _filterHistoryInIsolate(
   Map<String, Object> payload,
 ) {
@@ -219,6 +235,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   final Map<String, bool> _fileExistsCache = {};
   final Set<String> _pendingChecks = {};
   static const int _maxCacheSize = 500;
+  bool _fileExistsUpdateScheduled = false;
 
   bool _isSelectionMode = false;
   final Set<String> _selectedIds = {};
@@ -226,6 +243,20 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   PageController? _filterPageController;
   final List<String> _filterModes = ['all', 'albums', 'singles'];
   bool _isPageControllerInitialized = false;
+  static const List<String> _months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
 
 // Search functionality
   final TextEditingController _searchController = TextEditingController();
@@ -236,6 +267,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   List<LocalLibraryItem>? _localLibraryItemsCache;
   _HistoryStats? _historyStatsCache;
   final Map<String, String> _searchIndexCache = {};
+  final Map<String, String> _localSearchIndexCache = {};
   Map<String, DownloadHistoryItem> _historyItemsById = {};
   List<List<String>> _historyFilterEntries = const [];
   Map<String, List<DownloadHistoryItem>> _filteredHistoryCache = const {};
@@ -245,6 +277,10 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   bool _isFilteringHistory = false;
   int _filterRequestId = 0;
   static const int _filterIsolateThreshold = 800;
+  List<LocalLibraryItem>? _localFilterItemsCache;
+  String _localFilterQueryCache = '';
+  List<LocalLibraryItem> _filteredLocalItemsCache = const [];
+  final Map<String, _UnifiedCacheEntry> _unifiedItemsCache = {};
 
 
 
@@ -301,6 +337,17 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       ..addEntries(
         items.map((item) => MapEntry(item.id, _buildSearchKey(item))),
       );
+    if (localChanged) {
+      _localSearchIndexCache
+        ..clear()
+        ..addEntries(
+          localItems.map((item) => MapEntry(item.id, _buildLocalSearchKey(item))),
+        );
+      _localFilterItemsCache = null;
+      _localFilterQueryCache = '';
+      _filteredLocalItemsCache = const [];
+    }
+    _unifiedItemsCache.clear();
     _historyItemsById = {for (final item in items) item.id: item};
     _historyFilterEntries = List<List<String>>.generate(
       items.length,
@@ -308,7 +355,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         final item = items[index];
         final searchKey =
             _searchIndexCache[item.id] ?? _buildSearchKey(item);
-final albumKey =
+        final albumKey =
             '${item.albumName.toLowerCase()}|${(item.albumArtist ?? item.artistName).toLowerCase()}';
         return [item.id, albumKey, searchKey];
       },
@@ -320,6 +367,36 @@ final albumKey =
   String _buildSearchKey(DownloadHistoryItem item) {
     return '${item.trackName} ${item.artistName} ${item.albumName}'
         .toLowerCase();
+  }
+
+  String _buildLocalSearchKey(LocalLibraryItem item) {
+    return '${item.trackName} ${item.artistName} ${item.albumName}'
+        .toLowerCase();
+  }
+
+  List<LocalLibraryItem> _filterLocalItems(
+    List<LocalLibraryItem> items,
+    String query,
+  ) {
+    if (query.isEmpty) return items;
+    if (identical(items, _localFilterItemsCache) &&
+        query == _localFilterQueryCache) {
+      return _filteredLocalItemsCache;
+    }
+
+    final filtered = items.where((item) {
+      final searchKey =
+          _localSearchIndexCache[item.id] ?? _buildLocalSearchKey(item);
+      if (!_localSearchIndexCache.containsKey(item.id)) {
+        _localSearchIndexCache[item.id] = searchKey;
+      }
+      return searchKey.contains(query);
+    }).toList(growable: false);
+
+    _localFilterItemsCache = items;
+    _localFilterQueryCache = query;
+    _filteredLocalItemsCache = filtered;
+    return filtered;
   }
 
   bool _isFilterCacheValid(List<DownloadHistoryItem> items, String query) {
@@ -355,12 +432,11 @@ final albumKey =
     }
 
     if (items.length <= _filterIsolateThreshold) {
-      final filteredAll =
-          _filterHistoryItems(items, 'all', albumCounts, query);
+      final filteredAll = _applyHistorySearchFilter(items, query);
       final filteredAlbums =
-          _filterHistoryItems(items, 'albums', albumCounts, query);
+          _filterHistoryByAlbumCount(filteredAll, albumCounts, 2);
       final filteredSingles =
-          _filterHistoryItems(items, 'singles', albumCounts, query);
+          _filterHistoryByAlbumCount(filteredAll, albumCounts, 1);
       setState(() {
         _filteredHistoryCache = {
           'all': filteredAll,
@@ -425,6 +501,34 @@ final albumKey =
       );
     }
     return const [];
+  }
+
+  List<DownloadHistoryItem> _applyHistorySearchFilter(
+    List<DownloadHistoryItem> items,
+    String searchQuery,
+  ) {
+    if (searchQuery.isEmpty) return items;
+    final query = searchQuery;
+    return items.where((item) {
+      final searchKey = _searchIndexCache[item.id] ?? _buildSearchKey(item);
+      if (!_searchIndexCache.containsKey(item.id)) {
+        _searchIndexCache[item.id] = searchKey;
+      }
+      return searchKey.contains(query);
+    }).toList(growable: false);
+  }
+
+  List<DownloadHistoryItem> _filterHistoryByAlbumCount(
+    List<DownloadHistoryItem> items,
+    Map<String, int> albumCounts,
+    int targetCount,
+  ) {
+    return items.where((item) {
+      final key =
+          '${item.albumName.toLowerCase()}|${(item.albumArtist ?? item.artistName).toLowerCase()}';
+      final count = albumCounts[key] ?? 0;
+      return targetCount == 1 ? count == 1 : count >= targetCount;
+    }).toList(growable: false);
   }
 
   bool _shouldShowFilteringIndicator({
@@ -595,11 +699,26 @@ final albumKey =
     Future.microtask(() async {
       final exists = await File(cleanPath).exists();
       _pendingChecks.remove(cleanPath);
-      if (mounted && _fileExistsCache[cleanPath] != exists) {
-        setState(() => _fileExistsCache[cleanPath] = exists);
+      final previous = _fileExistsCache[cleanPath];
+      _fileExistsCache[cleanPath] = exists;
+      if (mounted && previous != exists) {
+        _scheduleFileExistsUpdate();
       }
     });
     return true;
+  }
+
+  void _scheduleFileExistsUpdate() {
+    if (_fileExistsUpdateScheduled) return;
+    _fileExistsUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        _fileExistsUpdateScheduled = false;
+        return;
+      }
+      _fileExistsUpdateScheduled = false;
+      setState(() {});
+    });
   }
 
   Future<void> _openFile(String filePath) async {
@@ -865,9 +984,9 @@ final queueItems = ref.watch(downloadQueueProvider.select((s) => s.items));
     );
     // Watch local library items
     final localLibraryEnabled = ref.watch(settingsProvider.select((s) => s.localLibraryEnabled));
-    final localLibraryItems = localLibraryEnabled 
+    final localLibraryItems = localLibraryEnabled
         ? ref.watch(localLibraryProvider.select((s) => s.items))
-        : <LocalLibraryItem>[];
+        : const <LocalLibraryItem>[];
     
     _ensureHistoryCaches(allHistoryItems, localLibraryItems);
     final historyViewMode = ref.watch(
@@ -1175,6 +1294,7 @@ child: _buildSelectionBottomBar(
                 allHistoryItems: allHistoryItems,
                 albumCounts: historyStats.albumCounts,
                 localLibraryItems: localLibraryItems,
+                localAlbumCounts: historyStats.localAlbumCounts,
               ),
               bottomPadding,
             ),
@@ -1190,34 +1310,73 @@ child: _buildSelectionBottomBar(
     required List<DownloadHistoryItem> allHistoryItems,
     required Map<String, int> albumCounts,
     required List<LocalLibraryItem> localLibraryItems,
+    required Map<String, int> localAlbumCounts,
   }) {
     final historyItems = _resolveHistoryItems(
       filterMode: filterMode,
       allHistoryItems: allHistoryItems,
       albumCounts: albumCounts,
     );
-    
-    // Convert download history to unified items
-    final unifiedDownloaded = historyItems.map((item) => 
-        UnifiedLibraryItem.fromDownloadHistory(item)).toList();
-    
-    // For 'all' filter, include local library items
-    if (filterMode == 'all') {
-      final searchQuery = _searchQuery;
-      final filteredLocalItems = searchQuery.isEmpty
-          ? localLibraryItems
-          : localLibraryItems.where((item) {
-              final searchKey = '${item.trackName} ${item.artistName} ${item.albumName}'.toLowerCase();
-              return searchKey.contains(searchQuery);
-            }).toList();
-      final unifiedLocal = filteredLocalItems.map((item) =>
-          UnifiedLibraryItem.fromLocalLibrary(item)).toList();
-      
-      return [...unifiedDownloaded, ...unifiedLocal]
-        ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+
+    return _getUnifiedItems(
+      filterMode: filterMode,
+      historyItems: historyItems,
+      localLibraryItems: localLibraryItems,
+      localAlbumCounts: localAlbumCounts,
+    );
+  }
+
+  List<UnifiedLibraryItem> _getUnifiedItems({
+    required String filterMode,
+    required List<DownloadHistoryItem> historyItems,
+    required List<LocalLibraryItem> localLibraryItems,
+    required Map<String, int> localAlbumCounts,
+  }) {
+    if (filterMode == 'albums') return const [];
+
+    final query = _searchQuery;
+    final cached = _unifiedItemsCache[filterMode];
+    if (cached != null &&
+        identical(cached.historyItems, historyItems) &&
+        identical(cached.localItems, localLibraryItems) &&
+        identical(cached.localAlbumCounts, localAlbumCounts) &&
+        cached.query == query) {
+      return cached.items;
     }
-    
-    return unifiedDownloaded;
+
+    final unifiedDownloaded = historyItems
+        .map((item) => UnifiedLibraryItem.fromDownloadHistory(item))
+        .toList(growable: false);
+
+    List<LocalLibraryItem> localItemsForMerge;
+    if (filterMode == 'all') {
+      localItemsForMerge = _filterLocalItems(localLibraryItems, query);
+    } else {
+      final localSingles = localLibraryItems.where((item) {
+        final count = localAlbumCounts[item.albumKey] ?? 0;
+        return count == 1;
+      }).toList(growable: false);
+      localItemsForMerge = _filterLocalItems(localSingles, query);
+    }
+
+    final unifiedLocal = localItemsForMerge
+        .map((item) => UnifiedLibraryItem.fromLocalLibrary(item))
+        .toList(growable: false);
+
+    final merged = <UnifiedLibraryItem>[
+      ...unifiedDownloaded,
+      ...unifiedLocal,
+    ]..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+
+    _unifiedItemsCache[filterMode] = _UnifiedCacheEntry(
+      historyItems: historyItems,
+      localItems: localLibraryItems,
+      localAlbumCounts: localAlbumCounts,
+      query: query,
+      items: merged,
+    );
+
+    return merged;
   }
 
   Widget _buildFilterContent({
@@ -1261,55 +1420,12 @@ child: _buildSelectionBottomBar(
     // Total album count for display
     final totalAlbumCount = filteredGroupedAlbums.length + filteredGroupedLocalAlbums.length;
 
-    // Create unified library items (merge downloaded + local) for 'all' filter
-    List<UnifiedLibraryItem> unifiedItems = [];
-    if (filterMode == 'all') {
-      // Convert download history to unified items
-      final unifiedDownloaded = historyItems.map((item) => 
-          UnifiedLibraryItem.fromDownloadHistory(item)).toList();
-      
-      // Convert local library to unified items (filter by search query)
-      final filteredLocalItems = searchQuery.isEmpty
-          ? localLibraryItems
-          : localLibraryItems.where((item) {
-              final searchKey = '${item.trackName} ${item.artistName} ${item.albumName}'.toLowerCase();
-              return searchKey.contains(searchQuery);
-            }).toList();
-      final unifiedLocal = filteredLocalItems.map((item) =>
-          UnifiedLibraryItem.fromLocalLibrary(item)).toList();
-
-      // Merge and sort by date (newest first)
-      unifiedItems = [...unifiedDownloaded, ...unifiedLocal]
-        ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
-    } else if (filterMode == 'singles') {
-      // For singles filter, include both downloaded singles and local library singles
-      final unifiedDownloaded = historyItems.map((item) => 
-          UnifiedLibraryItem.fromDownloadHistory(item)).toList();
-      
-      // Filter local library items to only include singles (albums with count == 1)
-      final filteredLocalSingles = localLibraryItems.where((item) {
-        final key = '${item.albumName.toLowerCase()}|${(item.albumArtist ?? item.artistName).toLowerCase()}';
-        return (localAlbumCounts[key] ?? 0) == 1;
-      }).toList();
-      
-      // Apply search filter to local singles
-      final searchFilteredLocalSingles = searchQuery.isEmpty
-          ? filteredLocalSingles
-          : filteredLocalSingles.where((item) {
-              final searchKey = '${item.trackName} ${item.artistName} ${item.albumName}'.toLowerCase();
-              return searchKey.contains(searchQuery);
-            }).toList();
-      
-      final unifiedLocalSingles = searchFilteredLocalSingles.map((item) =>
-          UnifiedLibraryItem.fromLocalLibrary(item)).toList();
-      
-      // Merge and sort by date (newest first)
-      unifiedItems = [...unifiedDownloaded, ...unifiedLocalSingles]
-        ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
-    } else {
-      // For albums filter, no unified items needed (we use album grid instead)
-      unifiedItems = [];
-    }
+    final unifiedItems = _getUnifiedItems(
+      filterMode: filterMode,
+      historyItems: historyItems,
+      localLibraryItems: localLibraryItems,
+      localAlbumCounts: localAlbumCounts,
+    );
 
     // Total count for display
     final totalTrackCount = unifiedItems.length;
@@ -1518,7 +1634,9 @@ child: _buildSelectionBottomBar(
 
         if (queueItems.isEmpty &&
             totalTrackCount == 0 &&
-            (filterMode != 'albums' || filteredGroupedAlbums.isEmpty) &&
+            (filterMode != 'albums' ||
+                (filteredGroupedAlbums.isEmpty &&
+                    filteredGroupedLocalAlbums.isEmpty)) &&
             !showFilteringIndicator)
           SliverFillRemaining(
             hasScrollBody: false,
@@ -2352,7 +2470,7 @@ child: CachedNetworkImage(
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(
-        isDownloaded ? Icons.music_note : Icons.music_note,
+        Icons.music_note,
         color: isDownloaded
             ? colorScheme.onSurfaceVariant
             : colorScheme.onSecondaryContainer,
@@ -2446,12 +2564,8 @@ child: CachedNetworkImage(
     final fileExists = _checkFileExists(item.filePath);
     final isSelected = _selectedIds.contains(item.id);
     final date = item.addedAt;
-    final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
     final dateStr =
-        '${months[date.month - 1]} ${date.day}, ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+        '${_months[date.month - 1]} ${date.day}, ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 
     final isDownloaded = item.source == LibraryItemSource.downloaded;
     final sourceLabel = isDownloaded

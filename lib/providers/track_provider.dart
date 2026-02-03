@@ -556,7 +556,8 @@ class TrackNotifier extends Notifier<TrackState> {
       final tracks = List<Track>.from(state.tracks);
       tracks[index] = updatedTrack;
       state = state.copyWith(tracks: tracks);
-    } catch (e) {
+    } catch (_) {
+      // Silently ignore update failures - track may have been removed
     }
   }
 

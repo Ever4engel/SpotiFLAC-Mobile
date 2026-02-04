@@ -35,7 +35,6 @@ func newUTLSTransport() *utlsTransport {
 }
 
 func (t *utlsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// For non-HTTPS, use standard transport
 	if req.URL.Scheme != "https" {
 		return sharedTransport.RoundTrip(req)
 	}
@@ -44,29 +43,24 @@ func (t *utlsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	port := t.getPort(req.URL)
 	addr := net.JoinHostPort(host, port)
 
-	// Dial TCP connection
 	conn, err := t.dialer.DialContext(req.Context(), "tcp", addr)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create uTLS connection with Chrome fingerprint (supports HTTP/2 ALPN)
 	tlsConn := utls.UClient(conn, &utls.Config{
 		ServerName: host,
-		NextProtos: []string{"h2", "http/1.1"}, // Prefer HTTP/2
+		NextProtos: []string{"h2", "http/1.1"},
 	}, utls.HelloChrome_Auto)
 
-	// Perform TLS handshake
 	if err := tlsConn.Handshake(); err != nil {
 		conn.Close()
 		return nil, err
 	}
 
-	// Check if server supports HTTP/2
 	negotiatedProto := tlsConn.ConnectionState().NegotiatedProtocol
 
 	if negotiatedProto == "h2" {
-		// Use HTTP/2 transport
 		h2Transport := &http2.Transport{
 			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
 				return tlsConn, nil
@@ -77,7 +71,6 @@ func (t *utlsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return h2Transport.RoundTrip(req)
 	}
 
-	// Fallback to HTTP/1.1
 	transport := &http.Transport{
 		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			return tlsConn, nil

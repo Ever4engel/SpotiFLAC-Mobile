@@ -3,23 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/models/theme_settings.dart';
 
-/// Provider for theme settings state management
 final themeProvider = NotifierProvider<ThemeNotifier, ThemeSettings>(() {
   return ThemeNotifier();
 });
 
-/// Notifier for managing theme settings with persistence
 class ThemeNotifier extends Notifier<ThemeSettings> {
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
   @override
   ThemeSettings build() {
-    // Load settings asynchronously on first access
     _loadFromStorage();
     return const ThemeSettings();
   }
 
-  /// Load theme settings from SharedPreferences
   Future<void> _loadFromStorage() async {
     try {
       final prefs = await _prefs;
@@ -39,7 +35,6 @@ class ThemeNotifier extends Notifier<ThemeSettings> {
     }
   }
 
-  /// Save current settings to SharedPreferences
   Future<void> _saveToStorage() async {
     try {
       final prefs = await _prefs;
@@ -52,13 +47,11 @@ class ThemeNotifier extends Notifier<ThemeSettings> {
     }
   }
 
-  /// Set theme mode (light, dark, or system)
   Future<void> setThemeMode(ThemeMode mode) async {
     state = state.copyWith(themeMode: mode);
     await _saveToStorage();
   }
 
-  /// Enable or disable dynamic color from wallpaper
   Future<void> setUseDynamicColor(bool value) async {
     state = state.copyWith(useDynamicColor: value);
     await _saveToStorage();
@@ -70,19 +63,16 @@ class ThemeNotifier extends Notifier<ThemeSettings> {
     await _saveToStorage();
   }
 
-  /// Set seed color from int value
   Future<void> setSeedColorValue(int colorValue) async {
     state = state.copyWith(seedColorValue: colorValue);
     await _saveToStorage();
   }
 
-  /// Enable or disable AMOLED mode (pure black background)
   Future<void> setUseAmoled(bool value) async {
     state = state.copyWith(useAmoled: value);
     await _saveToStorage();
   }
 
-  /// Helper to convert string to ThemeMode
   ThemeMode _themeModeFromString(String? value) {
     if (value == null) return ThemeMode.system;
     return ThemeMode.values.firstWhere(
@@ -91,3 +81,4 @@ class ThemeNotifier extends Notifier<ThemeSettings> {
     );
   }
 }
+

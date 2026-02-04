@@ -187,13 +187,13 @@ type ItemProgressWriter struct {
 	writer       interface{ Write([]byte) (int, error) }
 	itemID       string
 	current      int64
-	lastReported int64     // Track last reported bytes for threshold-based updates
-	startTime    time.Time // Track start time for speed calculation
-	lastTime     time.Time // Track last update time for speed calculation
-	lastBytes    int64     // Track bytes at last speed calculation
+	lastReported int64
+	startTime    time.Time
+	lastTime     time.Time
+	lastBytes    int64
 }
 
-const progressUpdateThreshold = 64 * 1024 // Update progress every 64KB
+const progressUpdateThreshold = 64 * 1024
 
 func NewItemProgressWriter(w interface{ Write([]byte) (int, error) }, itemID string) *ItemProgressWriter {
 	now := time.Now()

@@ -934,14 +934,14 @@ func (c *SpotifyMetadataClient) randomUserAgent() string {
 	defer c.rngMu.Unlock()
 
 	macMajor := c.rng.Intn(4) + 11
-	macMinor := c.rng.Intn(5) + 4          // 4-8
-	webkitMajor := c.rng.Intn(7) + 530     // 530-536
-	webkitMinor := c.rng.Intn(7) + 30      // 30-36
-	chromeMajor := c.rng.Intn(25) + 80     // 80-104
-	chromeBuild := c.rng.Intn(1500) + 3000 // 3000-4499
-	chromePatch := c.rng.Intn(65) + 60     // 60-124
-	safariMajor := c.rng.Intn(7) + 530     // 530-536
-	safariMinor := c.rng.Intn(6) + 30      // 30-35
+	macMinor := c.rng.Intn(5) + 4
+	webkitMajor := c.rng.Intn(7) + 530
+	webkitMinor := c.rng.Intn(7) + 30
+	chromeMajor := c.rng.Intn(25) + 80
+	chromeBuild := c.rng.Intn(1500) + 3000
+	chromePatch := c.rng.Intn(65) + 60
+	safariMajor := c.rng.Intn(7) + 530
+	safariMinor := c.rng.Intn(6) + 30
 
 	return fmt.Sprintf(
 		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_%d_%d) AppleWebKit/%d.%d (KHTML, like Gecko) Chrome/%d.0.%d.%d Safari/%d.%d",

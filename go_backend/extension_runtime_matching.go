@@ -9,7 +9,6 @@ import (
 
 // ==================== Track Matching API ====================
 
-// matchingCompareStrings compares two strings with fuzzy matching
 func (r *ExtensionRuntime) matchingCompareStrings(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
 		return r.vm.ToValue(0.0)
@@ -22,12 +21,10 @@ func (r *ExtensionRuntime) matchingCompareStrings(call goja.FunctionCall) goja.V
 		return r.vm.ToValue(1.0)
 	}
 
-	// Calculate Levenshtein distance-based similarity
 	similarity := calculateStringSimilarity(str1, str2)
 	return r.vm.ToValue(similarity)
 }
 
-// matchingCompareDuration compares two durations with tolerance
 func (r *ExtensionRuntime) matchingCompareDuration(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 2 {
 		return r.vm.ToValue(false)
@@ -36,8 +33,7 @@ func (r *ExtensionRuntime) matchingCompareDuration(call goja.FunctionCall) goja.
 	dur1 := int(call.Arguments[0].ToInteger())
 	dur2 := int(call.Arguments[1].ToInteger())
 
-	// Default tolerance: 3 seconds
-	tolerance := 3000 // milliseconds
+	tolerance := 3000
 	if len(call.Arguments) > 2 && !goja.IsUndefined(call.Arguments[2]) {
 		tolerance = int(call.Arguments[2].ToInteger())
 	}
@@ -50,7 +46,6 @@ func (r *ExtensionRuntime) matchingCompareDuration(call goja.FunctionCall) goja.
 	return r.vm.ToValue(diff <= tolerance)
 }
 
-// matchingNormalizeString normalizes a string for comparison
 func (r *ExtensionRuntime) matchingNormalizeString(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue("")
@@ -61,7 +56,6 @@ func (r *ExtensionRuntime) matchingNormalizeString(call goja.FunctionCall) goja.
 	return r.vm.ToValue(normalized)
 }
 
-// calculateStringSimilarity calculates similarity between two strings (0-1)
 func calculateStringSimilarity(s1, s2 string) float64 {
 	if len(s1) == 0 && len(s2) == 0 {
 		return 1.0
@@ -70,7 +64,6 @@ func calculateStringSimilarity(s1, s2 string) float64 {
 		return 0.0
 	}
 
-	// Use Levenshtein distance
 	distance := levenshteinDistance(s1, s2)
 	maxLen := len(s1)
 	if len(s2) > maxLen {
@@ -80,7 +73,6 @@ func calculateStringSimilarity(s1, s2 string) float64 {
 	return 1.0 - float64(distance)/float64(maxLen)
 }
 
-// levenshteinDistance calculates the Levenshtein distance between two strings
 func levenshteinDistance(s1, s2 string) int {
 	if len(s1) == 0 {
 		return len(s2)
@@ -89,7 +81,6 @@ func levenshteinDistance(s1, s2 string) int {
 		return len(s1)
 	}
 
-	// Create matrix
 	matrix := make([][]int, len(s1)+1)
 	for i := range matrix {
 		matrix[i] = make([]int, len(s2)+1)
@@ -99,7 +90,6 @@ func levenshteinDistance(s1, s2 string) int {
 		matrix[0][j] = j
 	}
 
-	// Fill matrix
 	for i := 1; i <= len(s1); i++ {
 		for j := 1; j <= len(s2); j++ {
 			cost := 1
@@ -107,9 +97,9 @@ func levenshteinDistance(s1, s2 string) int {
 				cost = 0
 			}
 			matrix[i][j] = min(
-				matrix[i-1][j]+1,      // deletion
-				matrix[i][j-1]+1,      // insertion
-				matrix[i-1][j-1]+cost, // substitution
+				matrix[i-1][j]+1,
+				matrix[i][j-1]+1,
+				matrix[i-1][j-1]+cost,
 			)
 		}
 	}
@@ -117,12 +107,9 @@ func levenshteinDistance(s1, s2 string) int {
 	return matrix[len(s1)][len(s2)]
 }
 
-// normalizeStringForMatching normalizes a string for comparison
 func normalizeStringForMatching(s string) string {
-	// Convert to lowercase
 	s = strings.ToLower(s)
 
-	// Remove common suffixes/prefixes
 	suffixes := []string{
 		" (remastered)", " (remaster)", " - remastered", " - remaster",
 		" (deluxe)", " (deluxe edition)", " - deluxe", " - deluxe edition",
@@ -136,7 +123,6 @@ func normalizeStringForMatching(s string) string {
 		}
 	}
 
-	// Remove special characters
 	var result strings.Builder
 	for _, r := range s {
 		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == ' ' {
@@ -144,7 +130,6 @@ func normalizeStringForMatching(s string) string {
 		}
 	}
 
-	// Collapse multiple spaces
 	s = strings.Join(strings.Fields(result.String()), " ")
 
 	return strings.TrimSpace(s)

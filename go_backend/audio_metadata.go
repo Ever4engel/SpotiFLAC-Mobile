@@ -44,7 +44,6 @@ type OggQuality struct {
 // ID3 Tag Reading (MP3)
 // =============================================================================
 
-// ReadID3Tags reads ID3v2 and ID3v1 tags from an MP3 file
 func ReadID3Tags(filePath string) (*AudioMetadata, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -87,7 +86,6 @@ func ReadID3Tags(filePath string) (*AudioMetadata, error) {
 	return metadata, nil
 }
 
-// readID3v2 reads ID3v2 tags from the beginning of file
 func readID3v2(file *os.File) (*AudioMetadata, error) {
 	file.Seek(0, io.SeekStart)
 
@@ -137,7 +135,6 @@ func readID3v2(file *os.File) (*AudioMetadata, error) {
 	return metadata, nil
 }
 
-// parseID3v22Frames parses ID3v2.2 frames (3-char frame IDs)
 func parseID3v22Frames(data []byte, metadata *AudioMetadata, tagUnsync bool) {
 	pos := 0
 	for pos+6 < len(data) {
@@ -286,7 +283,6 @@ func parseID3v23Frames(data []byte, metadata *AudioMetadata, version byte, tagUn
 	}
 }
 
-// readID3v1 reads ID3v1 tag from end of file
 func readID3v1(file *os.File) (*AudioMetadata, error) {
 	if _, err := file.Seek(-128, io.SeekEnd); err != nil {
 		return nil, err
@@ -321,7 +317,6 @@ func readID3v1(file *os.File) (*AudioMetadata, error) {
 	return metadata, nil
 }
 
-// extractTextFrame extracts text from ID3 text frame
 func extractTextFrame(data []byte) string {
 	if len(data) == 0 {
 		return ""
@@ -344,7 +339,6 @@ func extractTextFrame(data []byte) string {
 	}
 }
 
-// decodeUTF16 decodes UTF-16 with BOM
 func decodeUTF16(data []byte) string {
 	if len(data) < 2 {
 		return ""
@@ -362,12 +356,10 @@ func decodeUTF16(data []byte) string {
 	return decodeUTF16Data(data, littleEndian)
 }
 
-// decodeUTF16BE decodes UTF-16 Big Endian
 func decodeUTF16BE(data []byte) string {
 	return decodeUTF16Data(data, false)
 }
 
-// decodeUTF16Data decodes UTF-16 data
 func decodeUTF16Data(data []byte, littleEndian bool) string {
 	if len(data) < 2 {
 		return ""
@@ -389,13 +381,11 @@ func decodeUTF16Data(data []byte, littleEndian bool) string {
 	return string(runes)
 }
 
-// cleanGenre removes ID3 genre number format like "(17)" or "(17)Rock"
 func cleanGenre(genre string) string {
 	if len(genre) == 0 {
 		return ""
 	}
 
-	// Handle "(17)" or "(17)Rock" format
 	if genre[0] == '(' {
 		end := strings.Index(genre, ")")
 		if end > 0 {
@@ -411,7 +401,6 @@ func cleanGenre(genre string) string {
 	return genre
 }
 
-// parseTrackNumber extracts track number from "1/10" or "1" format
 func parseTrackNumber(s string) int {
 	s = strings.TrimSpace(s)
 	if idx := strings.Index(s, "/"); idx > 0 {
@@ -421,7 +410,6 @@ func parseTrackNumber(s string) int {
 	return num
 }
 
-// removeUnsync removes ID3 unsynchronization (0xFF 0x00 -> 0xFF)
 func removeUnsync(data []byte) []byte {
 	if len(data) == 0 {
 		return data
@@ -437,7 +425,6 @@ func removeUnsync(data []byte) []byte {
 	return out
 }
 
-// extendedHeaderSize returns the total number of bytes to skip for the extended header
 func extendedHeaderSize(data []byte, version byte) int {
 	if len(data) < 4 {
 		return 0
@@ -463,7 +450,6 @@ func extendedHeaderSize(data []byte, version byte) int {
 	return 0
 }
 
-// syncsafeToInt decodes a 4-byte syncsafe integer
 func syncsafeToInt(b []byte) int {
 	if len(b) < 4 {
 		return 0
@@ -471,7 +457,6 @@ func syncsafeToInt(b []byte) int {
 	return int(b[0])<<21 | int(b[1])<<14 | int(b[2])<<7 | int(b[3])
 }
 
-// firstTextValue returns the first value in a null-separated text list
 func firstTextValue(s string) string {
 	if idx := strings.IndexByte(s, 0); idx >= 0 {
 		return s[:idx]
@@ -479,7 +464,6 @@ func firstTextValue(s string) string {
 	return s
 }
 
-// GetMP3Quality reads MP3 audio quality info
 func GetMP3Quality(filePath string) (*MP3Quality, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -731,7 +715,6 @@ func detectOggStreamType(packets [][]byte) oggStreamType {
 	return oggStreamUnknown
 }
 
-// parseVorbisComments parses Vorbis comment block
 func parseVorbisComments(data []byte, metadata *AudioMetadata) {
 	if len(data) < 4 {
 		return
@@ -807,7 +790,6 @@ func parseVorbisComments(data []byte, metadata *AudioMetadata) {
 	}
 }
 
-// GetOggQuality reads Ogg/Opus audio quality info
 func GetOggQuality(filePath string) (*OggQuality, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -906,7 +888,6 @@ var id3v1Genres = []string{
 // Cover Art Extraction
 // =============================================================================
 
-// extractMP3CoverArt extracts cover art from MP3 file (APIC frame)
 func extractMP3CoverArt(filePath string) ([]byte, string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -976,7 +957,6 @@ func extractMP3CoverArt(filePath string) ([]byte, string, error) {
 	return nil, "", fmt.Errorf("no cover art found")
 }
 
-// parseAPICFrame parses APIC frame data
 func parseAPICFrame(data []byte, version byte) ([]byte, string) {
 	if len(data) < 4 {
 		return nil, ""
@@ -988,7 +968,6 @@ func parseAPICFrame(data []byte, version byte) ([]byte, string) {
 
 	var mimeType string
 	if version == 2 {
-		// ID3v2.2: 3-byte image format (JPG, PNG)
 		if pos+3 > len(data) {
 			return nil, ""
 		}
@@ -1003,7 +982,6 @@ func parseAPICFrame(data []byte, version byte) ([]byte, string) {
 			mimeType = "image/jpeg"
 		}
 	} else {
-		// ID3v2.3/2.4: null-terminated MIME string
 		end := pos
 		for end < len(data) && data[end] != 0 {
 			end++
@@ -1018,15 +996,12 @@ func parseAPICFrame(data []byte, version byte) ([]byte, string) {
 
 	pos++
 
-	// Skip description (null-terminated, may be UTF-16)
 	if encoding == 0 || encoding == 3 {
-		// ISO-8859-1 or UTF-8
 		for pos < len(data) && data[pos] != 0 {
 			pos++
 		}
 		pos++
 	} else {
-		// UTF-16: look for double null
 		for pos+1 < len(data) {
 			if data[pos] == 0 && data[pos+1] == 0 {
 				pos += 2
@@ -1043,7 +1018,6 @@ func parseAPICFrame(data []byte, version byte) ([]byte, string) {
 	return data[pos:], mimeType
 }
 
-// extractOggCoverArt extracts cover art from Ogg/Opus file (METADATA_BLOCK_PICTURE)
 func extractOggCoverArt(filePath string) ([]byte, string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -1087,7 +1061,6 @@ func extractOggCoverArt(filePath string) ([]byte, string, error) {
 	return nil, "", fmt.Errorf("no cover art found")
 }
 
-// extractPictureFromVorbisComments looks for METADATA_BLOCK_PICTURE in Vorbis comments
 func extractPictureFromVorbisComments(data []byte) ([]byte, string) {
 	if len(data) < 8 {
 		return nil, ""
@@ -1109,13 +1082,12 @@ func extractPictureFromVorbisComments(data []byte) ([]byte, string) {
 		return nil, ""
 	}
 
-	// Look for METADATA_BLOCK_PICTURE
 	for i := uint32(0); i < commentCount && i < 100; i++ {
 		var commentLen uint32
 		if err := binary.Read(reader, binary.LittleEndian, &commentLen); err != nil {
 			break
 		}
-		if commentLen > 10000000 { // 10MB sanity check
+		if commentLen > 10000000 {
 			break
 		}
 
@@ -1126,7 +1098,6 @@ func extractPictureFromVorbisComments(data []byte) ([]byte, string) {
 
 		key := "METADATA_BLOCK_PICTURE="
 		if len(comment) > len(key) && strings.ToUpper(string(comment[:len(key)])) == key {
-			// Base64-encoded FLAC picture block
 			b64Data := comment[len(key):]
 			decoded := make([]byte, base64StdDecodeLen(len(b64Data)))
 			n, err := base64StdDecode(decoded, b64Data)
@@ -1145,7 +1116,6 @@ func extractPictureFromVorbisComments(data []byte) ([]byte, string) {
 	return nil, ""
 }
 
-// parseFLACPictureBlock parses FLAC PICTURE metadata block format
 func parseFLACPictureBlock(data []byte) ([]byte, string) {
 	if len(data) < 32 {
 		return nil, ""

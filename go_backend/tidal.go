@@ -317,7 +317,6 @@ func (t *TidalDownloader) SearchTrackByISRC(isrc string) (*TidalTrack, error) {
 		return nil, err
 	}
 
-	// Find exact ISRC match
 	for i := range result.Items {
 		if result.Items[i].ISRC == isrc {
 			return &result.Items[i], nil
@@ -341,7 +340,6 @@ func (t *TidalDownloader) SearchTrackByMetadataWithISRC(trackName, artistName, s
 	// Build search queries - multiple strategies (same as PC version)
 	queries := []string{}
 
-	// Strategy 1: Artist + Track name (original)
 	if artistName != "" && trackName != "" {
 		queries = append(queries, artistName+" "+trackName)
 	}
@@ -584,7 +582,6 @@ type tidalAPIResult struct {
 	duration time.Duration
 }
 
-// Returns the first successful result (supports both v1 and v2 API formats)
 func getDownloadURLParallel(apis []string, trackID int64, quality string) (string, TidalDownloadInfo, error) {
 	if len(apis) == 0 {
 		return "", TidalDownloadInfo{}, fmt.Errorf("no APIs available")

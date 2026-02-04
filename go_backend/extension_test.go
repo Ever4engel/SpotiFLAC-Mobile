@@ -112,7 +112,6 @@ func TestExtensionRuntime_NetworkSandbox(t *testing.T) {
 
 	runtime := NewExtensionRuntime(ext)
 
-	// Test allowed domains
 	if err := runtime.validateDomain("https://api.allowed.com/path"); err != nil {
 		t.Errorf("Expected api.allowed.com to be allowed, got error: %v", err)
 	}
@@ -121,7 +120,6 @@ func TestExtensionRuntime_NetworkSandbox(t *testing.T) {
 		t.Errorf("Expected sub.wildcard.com to be allowed (wildcard), got error: %v", err)
 	}
 
-	// Test blocked domains
 	if err := runtime.validateDomain("https://blocked.com/path"); err == nil {
 		t.Error("Expected blocked.com to be denied")
 	}
@@ -139,7 +137,7 @@ func TestExtensionRuntime_FileSandbox(t *testing.T) {
 		Manifest: &ExtensionManifest{
 			Name: "test-ext",
 			Permissions: ExtensionPermissions{
-				File: true, // Enable file permission for test
+				File: true,
 			},
 		},
 		DataDir: tempDir,
@@ -147,7 +145,6 @@ func TestExtensionRuntime_FileSandbox(t *testing.T) {
 
 	runtime := NewExtensionRuntime(ext)
 
-	// Test valid path within sandbox
 	validPath, err := runtime.validatePath("test.txt")
 	if err != nil {
 		t.Errorf("Expected relative path to be valid, got error: %v", err)
@@ -156,13 +153,11 @@ func TestExtensionRuntime_FileSandbox(t *testing.T) {
 		t.Error("Expected non-empty path")
 	}
 
-	// Test path traversal attack
 	_, err = runtime.validatePath("../../../etc/passwd")
 	if err == nil {
 		t.Error("Expected path traversal to be blocked")
 	}
 
-	// Test nested path within sandbox (should be allowed)
 	nestedPath, err := runtime.validatePath("subdir/file.txt")
 	if err != nil {
 		t.Errorf("Expected nested path to be valid, got error: %v", err)
@@ -171,26 +166,23 @@ func TestExtensionRuntime_FileSandbox(t *testing.T) {
 		t.Error("Expected non-empty nested path")
 	}
 
-	// Test absolute path should be blocked (security fix)
-	// Use platform-appropriate absolute path
 	var absPath string
 	if filepath.IsAbs("C:\\Windows\\System32") {
-		absPath = "C:\\Windows\\System32\\test.txt" // Windows
+		absPath = "C:\\Windows\\System32\\test.txt"
 	} else {
-		absPath = "/etc/passwd" // Unix
+		absPath = "/etc/passwd"
 	}
 	_, err = runtime.validatePath(absPath)
 	if err == nil {
 		t.Error("Expected absolute path to be blocked")
 	}
 
-	// Test that extension without file permission is blocked
 	extNoFile := &LoadedExtension{
 		ID: "test-ext-no-file",
 		Manifest: &ExtensionManifest{
 			Name: "test-ext-no-file",
 			Permissions: ExtensionPermissions{
-				File: false, // No file permission
+				File: false,
 			},
 		},
 		DataDir: tempDir,
@@ -215,7 +207,6 @@ func TestExtensionRuntime_UtilityFunctions(t *testing.T) {
 	vm := goja.New()
 	runtime.RegisterAPIs(vm)
 
-	// Test base64 encode/decode
 	result, err := vm.RunString(`utils.base64Encode("hello")`)
 	if err != nil {
 		t.Fatalf("base64Encode failed: %v", err)
@@ -232,7 +223,6 @@ func TestExtensionRuntime_UtilityFunctions(t *testing.T) {
 		t.Errorf("Expected 'hello', got '%s'", result.String())
 	}
 
-	// Test MD5
 	result, err = vm.RunString(`utils.md5("hello")`)
 	if err != nil {
 		t.Fatalf("md5 failed: %v", err)
@@ -241,7 +231,6 @@ func TestExtensionRuntime_UtilityFunctions(t *testing.T) {
 		t.Errorf("Expected '5d41402abc4b2a76b9719d911017c592', got '%s'", result.String())
 	}
 
-	// Test JSON parse/stringify
 	result, err = vm.RunString(`utils.stringifyJSON({name: "test", value: 123})`)
 	if err != nil {
 		t.Fatalf("stringifyJSON failed: %v", err)
@@ -267,7 +256,6 @@ func TestExtensionRuntime_SSRFProtection(t *testing.T) {
 
 	runtime := NewExtensionRuntime(ext)
 
-	// Test that private IPs are blocked (SSRF protection)
 	privateIPs := []string{
 		"http://localhost/admin",
 		"http://127.0.0.1/admin",
@@ -285,7 +273,6 @@ func TestExtensionRuntime_SSRFProtection(t *testing.T) {
 		}
 	}
 
-	// Test that allowed public domain still works
 	if err := runtime.validateDomain("https://api.example.com/path"); err != nil {
 		t.Errorf("Expected api.example.com to be allowed, got error: %v", err)
 	}
@@ -296,7 +283,6 @@ func TestIsPrivateIP(t *testing.T) {
 		host     string
 		expected bool
 	}{
-		// Private IPs should be blocked
 		{"localhost", true},
 		{"127.0.0.1", true},
 		{"127.0.0.2", true},
@@ -306,18 +292,17 @@ func TestIsPrivateIP(t *testing.T) {
 		{"172.31.255.255", true},
 		{"192.168.0.1", true},
 		{"192.168.255.255", true},
-		{"169.254.169.254", true}, // AWS metadata
+		{"169.254.169.254", true},
 		{"router.local", true},
 		{"mydevice.local", true},
 
-		// Public IPs should be allowed
 		{"8.8.8.8", false},
 		{"1.1.1.1", false},
 		{"api.example.com", false},
 		{"google.com", false},
-		{"172.15.0.1", false},  // Just outside 172.16-31 range
-		{"172.32.0.1", false},  // Just outside 172.16-31 range
-		{"192.167.0.1", false}, // Not 192.168.x.x
+		{"172.15.0.1", false},
+		{"172.32.0.1", false},
+		{"192.167.0.1", false},
 	}
 
 	for _, tt := range tests {

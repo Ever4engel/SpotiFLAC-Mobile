@@ -16,7 +16,6 @@ import (
 )
 
 func getRandomUserAgent() string {
-	// Chrome version 120-145 (modern range)
 	chromeVersion := rand.Intn(26) + 120
 	chromeBuild := rand.Intn(1500) + 6000
 	chromePatch := rand.Intn(200) + 100
@@ -118,7 +117,6 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 	requestURL := req.URL.String()
 
 	for attempt := 0; attempt <= config.MaxRetries; attempt++ {
-		// Clone request for retry (body needs to be re-readable)
 		reqCopy := req.Clone(req.Context())
 		reqCopy.Header.Set("User-Agent", getRandomUserAgent())
 
@@ -126,9 +124,7 @@ func DoRequestWithRetry(client *http.Client, req *http.Request, config RetryConf
 		if err != nil {
 			lastErr = err
 
-			// Check for ISP blocking on network errors
 			if CheckAndLogISPBlocking(err, requestURL, "HTTP") {
-				// Don't retry if ISP blocking is detected - it won't help
 				return nil, WrapErrorWithISPCheck(err, requestURL, "HTTP")
 			}
 

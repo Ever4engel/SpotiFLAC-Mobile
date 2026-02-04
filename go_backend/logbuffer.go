@@ -27,7 +27,6 @@ var (
 	logBufferOnce   sync.Once
 )
 
-// GetLogBuffer returns the singleton log buffer instance
 func GetLogBuffer() *LogBuffer {
 	logBufferOnce.Do(func() {
 		globalLogBuffer = &LogBuffer{
@@ -45,7 +44,6 @@ func (lb *LogBuffer) SetLoggingEnabled(enabled bool) {
 	lb.loggingEnabled = enabled
 }
 
-// IsLoggingEnabled returns whether logging is enabled
 func (lb *LogBuffer) IsLoggingEnabled() bool {
 	lb.mu.RLock()
 	defer lb.mu.RUnlock()
@@ -75,7 +73,6 @@ func (lb *LogBuffer) Add(level, tag, message string) {
 	fmt.Printf("[%s] %s\n", tag, message)
 }
 
-// GetAll returns all log entries as JSON
 func (lb *LogBuffer) GetAll() string {
 	lb.mu.RLock()
 	defer lb.mu.RUnlock()
@@ -99,21 +96,18 @@ func (lb *LogBuffer) getSince(index int) ([]LogEntry, int) {
 	return entries, len(lb.entries)
 }
 
-// Clear clears all log entries
 func (lb *LogBuffer) Clear() {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
 	lb.entries = lb.entries[:0]
 }
 
-// Count returns the number of log entries
 func (lb *LogBuffer) Count() int {
 	lb.mu.RLock()
 	defer lb.mu.RUnlock()
 	return len(lb.entries)
 }
 
-// Helper functions for logging with different levels
 func LogDebug(tag, format string, args ...interface{}) {
 	GetLogBuffer().Add("DEBUG", tag, fmt.Sprintf(format, args...))
 }
@@ -163,15 +157,10 @@ func GoLog(format string, args ...interface{}) {
 	GetLogBuffer().Add(level, tag, message)
 }
 
-// Exported functions for Flutter
-
-// GetLogs returns all logs as JSON array
 func GetLogs() string {
 	return GetLogBuffer().GetAll()
 }
 
-// GetLogsSince returns logs since the given index
-// Returns JSON: {"logs": [...], "next_index": N}
 func GetLogsSince(index int) string {
 	entries, nextIndex := GetLogBuffer().getSince(index)
 	logsJson, _ := json.Marshal(entries)
@@ -179,17 +168,14 @@ func GetLogsSince(index int) string {
 	return result
 }
 
-// ClearLogs clears all logs
 func ClearLogs() {
 	GetLogBuffer().Clear()
 }
 
-// GetLogCount returns the number of log entries
 func GetLogCount() int {
 	return GetLogBuffer().Count()
 }
 
-// SetLoggingEnabled enables or disables logging from Flutter
 func SetLoggingEnabled(enabled bool) {
 	GetLogBuffer().SetLoggingEnabled(enabled)
 }

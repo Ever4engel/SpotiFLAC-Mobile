@@ -9,7 +9,6 @@ class PaletteService {
   static final PaletteService instance = PaletteService._();
   PaletteService._();
 
-  /// Cache for already computed colors
   final Map<String, Color> _colorCache = {};
 
   /// Extract dominant color from a network image URL
@@ -47,7 +46,6 @@ class PaletteService {
     }
   }
 
-  /// Extract dominant color from a local file path
   Future<Color?> extractDominantColorFromFile(String? filePath) async {
     if (filePath == null || filePath.isEmpty) return null;
 
@@ -81,12 +79,10 @@ class PaletteService {
     }
   }
 
-  /// Clear the color cache
   void clearCache() {
     _colorCache.clear();
   }
 
-  /// Get cached color without computing
   Color? getCached(String? imageUrl) {
     if (imageUrl == null) return null;
     return _colorCache[imageUrl];

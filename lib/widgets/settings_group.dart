@@ -43,8 +43,8 @@ class SettingsGroup extends StatelessWidget {
   }
 }
 
-/// A single settings item that can be used inside SettingsGroup
 class SettingsItem extends StatelessWidget {
+
   final IconData? icon;
   final String title;
   final String? subtitle;
@@ -125,8 +125,8 @@ class SettingsItem extends StatelessWidget {
   }
 }
 
-/// A switch settings item for SettingsGroup
 class SettingsSwitchItem extends StatelessWidget {
+
   final IconData? icon;
   final String title;
   final String? subtitle;
@@ -213,8 +213,8 @@ class SettingsSwitchItem extends StatelessWidget {
   }
 }
 
-/// Section header for settings groups
 class SettingsSectionHeader extends StatelessWidget {
+
   final String title;
 
   const SettingsSectionHeader({super.key, required this.title});

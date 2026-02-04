@@ -735,7 +735,6 @@ func SearchDeezerAll(query string, trackLimit, artistLimit int, filter string) (
 	return string(jsonBytes), nil
 }
 
-// GetDeezerMetadata fetches metadata from Deezer URL or ID
 func GetDeezerMetadata(resourceType, resourceID string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -834,8 +833,6 @@ func SearchDeezerByISRC(isrc string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// ConvertSpotifyToDeezer converts a Spotify track/album ID to Deezer and fetches metadata
-// Useful when Spotify API is rate limited
 func ConvertSpotifyToDeezer(resourceType, spotifyID string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -885,7 +882,6 @@ func ConvertSpotifyToDeezer(resourceType, spotifyID string) (string, error) {
 	return "", fmt.Errorf("Spotify to Deezer conversion only supported for tracks and albums. Please search by name for %s", resourceType)
 }
 
-// GetSpotifyMetadataWithDeezerFallback tries Spotify first, falls back to Deezer on rate limit
 func GetSpotifyMetadataWithDeezerFallback(spotifyURL string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -942,7 +938,6 @@ func CheckAvailabilityFromDeezerID(deezerTrackID string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// CheckAvailabilityByPlatformID checks track availability using any platform as source
 func CheckAvailabilityByPlatformID(platform, entityType, entityID string) (string, error) {
 	client := NewSongLinkClient()
 	availability, err := client.CheckAvailabilityByPlatform(platform, entityType, entityID)

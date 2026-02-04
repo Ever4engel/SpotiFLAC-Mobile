@@ -5,7 +5,6 @@ import 'package:spotiflac_android/providers/extension_provider.dart';
 
 final _log = AppLogger('ExploreProvider');
 
-/// Represents an item in a Spotify home section
 class ExploreItem {
   final String id;
   final String uri;
@@ -50,7 +49,6 @@ class ExploreItem {
   }
 }
 
-/// Represents a section in Spotify home feed
 class ExploreSection {
   final String uri;
   final String title;
@@ -79,7 +77,6 @@ class ExploreSection {
   }
 }
 
-/// State for explore/home feed
 class ExploreState {
   final bool isLoading;
   final String? error;
@@ -114,7 +111,6 @@ class ExploreState {
   }
 }
 
-/// Calculate greeting based on local device time
 String _getLocalGreeting() {
   final hour = DateTime.now().hour;
   if (hour >= 5 && hour < 12) {
@@ -139,7 +135,6 @@ bool _isYTMusicQuickPicksItems(List<ExploreItem> items) {
   return true;
 }
 
-/// Provider for explore/home feed state
 class ExploreNotifier extends Notifier<ExploreState> {
   @override
   ExploreState build() {
@@ -150,7 +145,6 @@ class ExploreNotifier extends Notifier<ExploreState> {
   Future<void> fetchHomeFeed({bool forceRefresh = false}) async {
     _log.i('fetchHomeFeed called, forceRefresh=$forceRefresh');
     
-    // Don't refetch if we have data and it's less than 5 minutes old
     if (!forceRefresh && 
         state.hasContent && 
         state.lastFetched != null &&
@@ -167,11 +161,9 @@ class ExploreNotifier extends Notifier<ExploreState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // Find any extension with homeFeed capability
       final extState = ref.read(extensionProvider);
       _log.d('Extensions count: ${extState.extensions.length}');
       
-      // Look for extensions with homeFeed capability (prefer spotify-web)
       Extension? targetExt;
       for (final extension in extState.extensions) {
         if (!extension.enabled || !extension.hasHomeFeed) {
@@ -225,14 +217,11 @@ class ExploreNotifier extends Notifier<ExploreState> {
 
       _log.i('Fetched ${sections.length} sections');
       
-      // Debug: log first section items
       if (sections.isNotEmpty && sections.first.items.isNotEmpty) {
         final firstItem = sections.first.items.first;
         _log.d('First item: name=${firstItem.name}, artists=${firstItem.artists}, type=${firstItem.type}');
       }
 
-      // Always use local device time for greeting to avoid timezone issues
-      // Extension greeting may use wrong timezone (UTC or Spotify account timezone)
       final localGreeting = _getLocalGreeting();
       _log.d('Greeting from extension: $greeting, using local: $localGreeting');
 
@@ -251,14 +240,13 @@ class ExploreNotifier extends Notifier<ExploreState> {
     }
   }
 
-  /// Clear cached data
   void clear() {
     state = const ExploreState();
   }
 
-  /// Refresh home feed
   Future<void> refresh() => fetchHomeFeed(forceRefresh: true);
 }
+
 
 final exploreProvider = NotifierProvider<ExploreNotifier, ExploreState>(() {
   return ExploreNotifier();

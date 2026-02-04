@@ -75,7 +75,6 @@ func isPathWithinBase(baseDir, targetPath string) bool {
 }
 
 func (r *ExtensionRuntime) validatePath(path string) (string, error) {
-	// Check if extension has file permission
 	if !r.manifest.Permissions.File {
 		return "", fmt.Errorf("file access denied: extension does not have 'file' permission")
 	}

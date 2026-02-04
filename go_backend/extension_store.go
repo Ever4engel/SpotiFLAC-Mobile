@@ -12,7 +12,6 @@ import (
 	"time"
 )
 
-// Extension categories
 const (
 	CategoryMetadata    = "metadata"
 	CategoryDownload    = "download"
@@ -146,7 +145,6 @@ func InitExtensionStore(cacheDir string) *ExtensionStore {
 			cacheDir:    cacheDir,
 			cacheTTL:    cacheTTL,
 		}
-		// Try to load from disk cache
 		extensionStore.loadDiskCache()
 	}
 	return extensionStore
@@ -209,7 +207,6 @@ func (s *ExtensionStore) FetchRegistry(forceRefresh bool) (*StoreRegistry, error
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 
-	// Return cached if valid and not forcing refresh
 	if !forceRefresh && s.cache != nil && time.Since(s.cacheTime) < s.cacheTTL {
 		LogDebug("ExtensionStore", "Using cached registry (%d extensions)", len(s.cache.Extensions))
 		return s.cache, nil
@@ -224,7 +221,6 @@ func (s *ExtensionStore) FetchRegistry(forceRefresh bool) (*StoreRegistry, error
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Get(s.registryURL)
 	if err != nil {
-		// Return cached data if available on network error
 		if s.cache != nil {
 			LogWarn("ExtensionStore", "Network error, using cached registry: %v", err)
 			return s.cache, nil

@@ -121,7 +121,6 @@ func (r *ExtensionRuntime) authClear(call goja.FunctionCall) goja.Value {
 	return r.vm.ToValue(true)
 }
 
-// authIsAuthenticated checks if extension has valid auth
 func (r *ExtensionRuntime) authIsAuthenticated(call goja.FunctionCall) goja.Value {
 	extensionAuthStateMu.RLock()
 	defer extensionAuthStateMu.RUnlock()
@@ -194,7 +193,6 @@ func generatePKCEChallenge(verifier string) string {
 }
 
 func (r *ExtensionRuntime) authGeneratePKCE(call goja.FunctionCall) goja.Value {
-	// Default length is 64 characters
 	length := 64
 	if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) {
 		if l, ok := call.Arguments[0].Export().(float64); ok && l >= 43 && l <= 128 {
@@ -247,9 +245,7 @@ func (r *ExtensionRuntime) authGetPKCE(call goja.FunctionCall) goja.Value {
 	})
 }
 
-// authStartOAuthWithPKCE is a high-level helper that generates PKCE and opens OAuth URL
 // config: { authUrl, clientId, redirectUri, scope, extraParams }
-// Returns: { success, authUrl, pkce: { verifier, challenge } }
 func (r *ExtensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.Value {
 	if len(call.Arguments) < 1 {
 		return r.vm.ToValue(map[string]interface{}{
@@ -267,7 +263,6 @@ func (r *ExtensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.V
 		})
 	}
 
-	// Required fields
 	authURL, _ := config["authUrl"].(string)
 	clientID, _ := config["clientId"].(string)
 	redirectURI, _ := config["redirectUri"].(string)
@@ -279,11 +274,9 @@ func (r *ExtensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.V
 		})
 	}
 
-	// Optional fields
 	scope, _ := config["scope"].(string)
 	extraParams, _ := config["extraParams"].(map[string]interface{})
 
-	// Generate PKCE
 	verifier, err := generatePKCEVerifier(64)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -293,7 +286,6 @@ func (r *ExtensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.V
 	}
 	challenge := generatePKCEChallenge(verifier)
 
-	// Store PKCE in auth state
 	extensionAuthStateMu.Lock()
 	state, exists := extensionAuthState[r.extensionID]
 	if !exists {
@@ -302,10 +294,9 @@ func (r *ExtensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.V
 	}
 	state.PKCEVerifier = verifier
 	state.PKCEChallenge = challenge
-	state.AuthCode = "" // Clear any previous auth code
+	state.AuthCode = ""
 	extensionAuthStateMu.Unlock()
 
-	// Build OAuth URL with PKCE parameters
 	parsedURL, err := url.Parse(authURL)
 	if err != nil {
 		return r.vm.ToValue(map[string]interface{}{
@@ -325,7 +316,6 @@ func (r *ExtensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.V
 		query.Set("scope", scope)
 	}
 
-	// Add extra params
 	for k, v := range extraParams {
 		query.Set(k, fmt.Sprintf("%v", v))
 	}
@@ -333,7 +323,6 @@ func (r *ExtensionRuntime) authStartOAuthWithPKCE(call goja.FunctionCall) goja.V
 	parsedURL.RawQuery = query.Encode()
 	fullAuthURL := parsedURL.String()
 
-	// Store pending auth request for Flutter
 	pendingAuthRequestsMu.Lock()
 	pendingAuthRequests[r.extensionID] = &PendingAuthRequest{
 		ExtensionID: r.extensionID,

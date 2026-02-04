@@ -452,7 +452,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     return const ExtensionState();
   }
 
-  /// Initialize the extension system
   Future<void> initialize(String extensionsDir, String dataDir) async {
     if (state.isInitialized) return;
     
@@ -485,7 +484,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Refresh the list of installed extensions
   Future<void> refreshExtensions() async {
     try {
       final list = await PlatformBridge.getInstalledExtensions();
@@ -493,7 +491,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       state = state.copyWith(extensions: extensions);
       _log.d('Loaded ${extensions.length} extensions');
       
-      // Log search behavior for extensions that have it
       for (final ext in extensions) {
         if (ext.searchBehavior != null) {
           _log.d('Extension ${ext.id}: thumbnailRatio=${ext.searchBehavior!.thumbnailRatio}');
@@ -504,6 +501,7 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       state = state.copyWith(error: e.toString());
     }
   }
+
 
   void clearError() {
     state = state.copyWith(error: null);
@@ -550,7 +548,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Uninstall/remove an extension
   Future<bool> removeExtension(String extensionId) async {
     state = state.copyWith(isLoading: true, error: null);
     
@@ -566,6 +563,7 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       return false;
     }
   }
+
 
   Future<void> setExtensionEnabled(String extensionId, bool enabled) async {
     try {
@@ -603,7 +601,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Get settings for an extension
   Future<Map<String, dynamic>> getExtensionSettings(String extensionId) async {
     try {
       return await PlatformBridge.getExtensionSettings(extensionId);
@@ -623,7 +620,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Load provider priority order
   Future<void> loadProviderPriority() async {
     try {
       final priority = await PlatformBridge.getProviderPriority();
@@ -632,6 +628,7 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       _log.e('Failed to load provider priority: $e');
     }
   }
+
 
   Future<void> setProviderPriority(List<String> priority) async {
     try {
@@ -644,7 +641,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Load metadata provider priority order
   Future<void> loadMetadataProviderPriority() async {
     try {
       final priority = await PlatformBridge.getMetadataProviderPriority();
@@ -665,7 +661,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Cleanup all extensions (call on app close)
   Future<void> cleanup() async {
     try {
       await PlatformBridge.cleanupExtensions();
@@ -683,7 +678,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
   }
 
-  /// Get all enabled extensions
   List<Extension> get enabledExtensions {
     return state.extensions.where((ext) => ext.enabled).toList();
   }
@@ -698,7 +692,6 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     return providers;
   }
 
-  /// Get all metadata providers (built-in + extensions)
   List<String> getAllMetadataProviders() {
     final providers = ['deezer', 'spotify'];
     for (final ext in state.extensions) {
@@ -708,6 +701,7 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     }
     return providers;
   }
+
   List<Extension> get searchProviders {
     return state.extensions.where((ext) => ext.enabled && ext.hasCustomSearch).toList();
   }

@@ -175,7 +175,6 @@ func (m *ExtensionManifest) Validate() error {
 		}
 	}
 
-	// Validate settings if present
 	for i, setting := range m.Settings {
 		if strings.TrimSpace(setting.Key) == "" {
 			return &ManifestValidationError{
@@ -236,7 +235,7 @@ func (m *ExtensionManifest) IsDomainAllowed(domain string) bool {
 		}
 		// Support wildcard subdomains (e.g., *.example.com)
 		if strings.HasPrefix(allowed, "*.") {
-			suffix := allowed[1:] // Remove the *
+			suffix := allowed[1:]
 			if strings.HasSuffix(domain, suffix) {
 				return true
 			}
@@ -269,7 +268,6 @@ func (m *ExtensionManifest) MatchesURL(urlStr string) bool {
 	urlStr = strings.ToLower(strings.TrimSpace(urlStr))
 	for _, pattern := range m.URLHandler.Patterns {
 		pattern = strings.ToLower(strings.TrimSpace(pattern))
-		// Check if URL contains the pattern (host match)
 		if strings.Contains(urlStr, pattern) {
 			return true
 		}

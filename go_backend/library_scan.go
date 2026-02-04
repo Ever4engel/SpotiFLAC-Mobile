@@ -31,7 +31,6 @@ type LibraryScanResult struct {
 	Format      string `json:"format,omitempty"`
 }
 
-// LibraryScanProgress reports progress during scan
 type LibraryScanProgress struct {
 	TotalFiles   int     `json:"total_files"`
 	ScannedFiles int     `json:"scanned_files"`
@@ -50,7 +49,6 @@ var (
 	libraryCoverCacheMu   sync.RWMutex
 )
 
-// supportedAudioFormats lists file extensions we can read metadata from
 var supportedAudioFormats = map[string]bool{
 	".flac": true,
 	".m4a":  true,
@@ -59,15 +57,12 @@ var supportedAudioFormats = map[string]bool{
 	".ogg":  true,
 }
 
-// SetLibraryCoverCacheDir sets the directory to cache extracted cover art
 func SetLibraryCoverCacheDir(cacheDir string) {
 	libraryCoverCacheMu.Lock()
 	libraryCoverCacheDir = cacheDir
 	libraryCoverCacheMu.Unlock()
 }
 
-// ScanLibraryFolder scans a folder recursively for audio files and reads their metadata
-// Returns JSON array of LibraryScanResult
 func ScanLibraryFolder(folderPath string) (string, error) {
 	if folderPath == "" {
 		return "[]", fmt.Errorf("folder path is empty")

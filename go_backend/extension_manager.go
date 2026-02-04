@@ -47,7 +47,7 @@ type LoadedExtension struct {
 	ID        string             `json:"id"`
 	Manifest  *ExtensionManifest `json:"manifest"`
 	VM        *goja.Runtime      `json:"-"`
-	VMMu      sync.Mutex         `json:"-"` // Mutex to prevent concurrent VM access
+	VMMu      sync.Mutex         `json:"-"`
 	Enabled   bool               `json:"enabled"`
 	Error     string             `json:"error,omitempty"`
 	DataDir   string             `json:"data_dir"`
@@ -58,8 +58,8 @@ type LoadedExtension struct {
 type ExtensionManager struct {
 	mu            sync.RWMutex
 	extensions    map[string]*LoadedExtension
-	extensionsDir string // Base directory for extensions
-	dataDir       string // Base directory for extension data
+	extensionsDir string
+	dataDir       string
 }
 
 var (
@@ -98,7 +98,6 @@ func (m *ExtensionManager) LoadExtensionFromFile(filePath string) (*LoadedExtens
 		return nil, fmt.Errorf("Invalid file format. Please select a .spotiflac-ext file")
 	}
 
-	// Open the zip file
 	zipReader, err := zip.OpenReader(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot open extension file. The file may be corrupted or not a valid extension package")
@@ -221,7 +220,6 @@ func (m *ExtensionManager) LoadExtensionFromFile(filePath string) (*LoadedExtens
 		SourceDir: extDir,
 	}
 
-	// Initialize Goja VM
 	if err := m.initializeVM(ext); err != nil {
 		ext.Error = err.Error()
 		ext.Enabled = false
@@ -268,13 +266,11 @@ func (m *ExtensionManager) initializeVM(ext *LoadedExtension) error {
 		return goja.Undefined()
 	})
 
-	// Run the extension code
 	_, err = vm.RunString(string(jsCode))
 	if err != nil {
 		return fmt.Errorf("failed to execute extension code: %w", err)
 	}
 
-	// Verify extension was registered
 	if registeredExtension == nil || goja.IsUndefined(registeredExtension) {
 		return fmt.Errorf("extension did not call registerExtension()")
 	}
@@ -291,9 +287,7 @@ func (m *ExtensionManager) UnloadExtension(extensionID string) error {
 		return fmt.Errorf("Extension not found")
 	}
 
-	// Call cleanup if VM is initialized
 	if ext.VM != nil {
-		// Try to call cleanup function
 		cleanup, err := ext.VM.RunString("typeof extension !== 'undefined' && typeof extension.cleanup === 'function' ? extension.cleanup() : null")
 		if err != nil {
 			GoLog("[Extension] Error calling cleanup for %s: %v\n", extensionID, err)
@@ -302,7 +296,6 @@ func (m *ExtensionManager) UnloadExtension(extensionID string) error {
 		}
 	}
 
-	// Remove from registry
 	delete(m.extensions, extensionID)
 	GoLog("[Extension] Unloaded extension: %s\n", extensionID)
 
@@ -343,7 +336,6 @@ func (m *ExtensionManager) SetExtensionEnabled(extensionID string, enabled bool)
 	ext.Enabled = enabled
 	GoLog("[Extension] %s %s\n", extensionID, map[bool]string{true: "enabled", false: "disabled"}[enabled])
 
-	// Persist enabled state to settings store
 	store := GetExtensionSettingsStore()
 	if err := store.Set(extensionID, "_enabled", enabled); err != nil {
 		GoLog("[Extension] Failed to persist enabled state for %s: %v\n", extensionID, err)
@@ -438,7 +430,6 @@ func (m *ExtensionManager) loadExtensionFromDirectory(dirPath string) (*LoadedEx
 		}
 	}
 
-	// Initialize Goja VM
 	if err := m.initializeVM(ext); err != nil {
 		ext.Error = err.Error()
 		ext.Enabled = false
@@ -457,12 +448,10 @@ func (m *ExtensionManager) RemoveExtension(extensionID string) error {
 		return err
 	}
 
-	// Unload first
 	if err := m.UnloadExtension(extensionID); err != nil {
 		return err
 	}
 
-	// Remove source directory
 	if ext.SourceDir != "" {
 		if err := os.RemoveAll(ext.SourceDir); err != nil {
 			GoLog("[Extension] Warning: failed to remove source dir: %v\n", err)
@@ -484,7 +473,6 @@ func (m *ExtensionManager) UpgradeExtension(filePath string) (*LoadedExtension, 
 		return nil, fmt.Errorf("Invalid file format. Please select a .spotiflac-ext file")
 	}
 
-	// Open the zip file
 	zipReader, err := zip.OpenReader(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot open extension file. The file may be corrupted or not a valid extension package")
@@ -548,11 +536,9 @@ func (m *ExtensionManager) UpgradeExtension(filePath string) (*LoadedExtension, 
 	extDir := existing.SourceDir
 	wasEnabled := existing.Enabled
 
-	// Cleanup and unload existing extension
 	m.CleanupExtension(existing.ID)
 	m.UnloadExtension(existing.ID)
 
-	// Remove old source files but keep data directory
 	if extDir != "" {
 		if err := os.RemoveAll(extDir); err != nil {
 			GoLog("[Extension] Warning: failed to remove old source dir: %v\n", err)
@@ -634,11 +620,11 @@ type ExtensionUpgradeInfo struct {
 func (m *ExtensionManager) checkExtensionUpgradeInternal(filePath string) (*ExtensionUpgradeInfo, error) {
 	// Validate file extension
 	if !strings.HasSuffix(strings.ToLower(filePath), ".spotiflac-ext") {
-		return nil, fmt.Errorf("Invalid file format")
+		return nil, fmt.Errorf("Invalid file format. Please select a .spotiflac-ext file")
 	}
 
-	// Open the zip file
 	zipReader, err := zip.OpenReader(filePath)
+
 	if err != nil {
 		return nil, fmt.Errorf("Cannot open extension file")
 	}

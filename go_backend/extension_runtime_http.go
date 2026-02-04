@@ -38,7 +38,6 @@ func (r *ExtensionRuntime) validateDomain(urlStr string) error {
 		return fmt.Errorf("invalid URL: hostname is required")
 	}
 
-	// Block private/local network access (SSRF protection)
 	if isPrivateIP(domain) {
 		return fmt.Errorf("network access denied: private/local network '%s' not allowed", domain)
 	}

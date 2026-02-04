@@ -15,7 +15,6 @@ type ExtensionSettingsStore struct {
 	settings map[string]map[string]interface{} // extensionID -> settings
 }
 
-// Global settings store
 var (
 	globalSettingsStore     *ExtensionSettingsStore
 	globalSettingsStoreOnce sync.Once
@@ -129,7 +128,6 @@ func (s *ExtensionSettingsStore) GetAll(extensionID string) map[string]interface
 		return make(map[string]interface{})
 	}
 
-	// Return a copy
 	result := make(map[string]interface{})
 	for k, v := range extSettings {
 		result[k] = v
@@ -156,7 +154,6 @@ func (s *ExtensionSettingsStore) SetAll(extensionID string, settings map[string]
 
 	s.settings[extensionID] = settings
 
-	// Persist to disk
 	return s.saveSettings(extensionID, settings)
 }
 
@@ -171,7 +168,6 @@ func (s *ExtensionSettingsStore) Remove(extensionID, key string) error {
 
 	delete(extSettings, key)
 
-	// Persist to disk
 	return s.saveSettings(extensionID, extSettings)
 }
 

@@ -106,7 +106,6 @@ func NewExtensionRuntime(ext *LoadedExtension) *ExtensionRuntime {
 		Timeout: 30 * time.Second,
 		Jar:     jar,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			// Validate redirect target domain against allowed domains
 			if req.URL.Scheme != "https" {
 				GoLog("[Extension:%s] Redirect blocked: non-https scheme '%s'\n", ext.ID, req.URL.Scheme)
 				return fmt.Errorf("redirect blocked: only https is allowed")
@@ -125,7 +124,6 @@ func NewExtensionRuntime(ext *LoadedExtension) *ExtensionRuntime {
 				GoLog("[Extension:%s] Redirect blocked: private IP '%s'\n", ext.ID, domain)
 				return &RedirectBlockedError{Domain: domain, IsPrivate: true}
 			}
-			// Default redirect limit (10)
 			if len(via) >= 10 {
 				return http.ErrUseLastResponse
 			}
@@ -227,7 +225,6 @@ func (r *ExtensionRuntime) SetSettings(settings map[string]interface{}) {
 func (r *ExtensionRuntime) RegisterAPIs(vm *goja.Runtime) {
 	r.vm = vm
 
-	// HTTP client (sandboxed to allowed domains)
 	httpObj := vm.NewObject()
 	httpObj.Set("get", r.httpGet)
 	httpObj.Set("post", r.httpPost)
@@ -264,7 +261,6 @@ func (r *ExtensionRuntime) RegisterAPIs(vm *goja.Runtime) {
 	authObj.Set("exchangeCodeWithPKCE", r.authExchangeCodeWithPKCE)
 	vm.Set("auth", authObj)
 
-	// File operations (sandboxed)
 	fileObj := vm.NewObject()
 	fileObj.Set("download", r.fileDownload)
 	fileObj.Set("exists", r.fileExists)
@@ -282,7 +278,6 @@ func (r *ExtensionRuntime) RegisterAPIs(vm *goja.Runtime) {
 	ffmpegObj.Set("convert", r.ffmpegConvert)
 	vm.Set("ffmpeg", ffmpegObj)
 
-	// Track matching API
 	matchingObj := vm.NewObject()
 	matchingObj.Set("compareStrings", r.matchingCompareStrings)
 	matchingObj.Set("compareDuration", r.matchingCompareDuration)

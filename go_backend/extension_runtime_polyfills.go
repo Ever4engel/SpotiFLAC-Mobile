@@ -25,14 +25,11 @@ func (r *ExtensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 	}
 
 	urlStr := call.Arguments[0].String()
-
-	// Validate domain
 	if err := r.validateDomain(urlStr); err != nil {
 		GoLog("[Extension:%s] fetch blocked: %v\n", r.extensionID, err)
 		return r.createFetchError(err.Error())
 	}
 
-	// Parse options
 	method := "GET"
 	var bodyStr string
 	headers := make(map[string]string)
@@ -84,7 +81,6 @@ func (r *ExtensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
-	// Set defaults if not provided
 	if req.Header.Get("User-Agent") == "" {
 		req.Header.Set("User-Agent", "SpotiFLAC-Extension/1.0")
 	}
@@ -112,7 +108,6 @@ func (r *ExtensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 		}
 	}
 
-	// Create Response object (browser-compatible)
 	responseObj := r.vm.NewObject()
 	responseObj.Set("ok", resp.StatusCode >= 200 && resp.StatusCode < 300)
 	responseObj.Set("status", resp.StatusCode)
@@ -136,7 +131,6 @@ func (r *ExtensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 	})
 
 	responseObj.Set("arrayBuffer", func(call goja.FunctionCall) goja.Value {
-		// Return as array of bytes
 		byteArray := make([]interface{}, len(body))
 		for i, b := range body {
 			byteArray[i] = int(b)
@@ -171,7 +165,6 @@ func (r *ExtensionRuntime) atobPolyfill(call goja.FunctionCall) goja.Value {
 	input := call.Arguments[0].String()
 	decoded, err := base64.StdEncoding.DecodeString(input)
 	if err != nil {
-		// Try URL-safe base64
 		decoded, err = base64.URLEncoding.DecodeString(input)
 		if err != nil {
 			GoLog("[Extension:%s] atob decode error: %v\n", r.extensionID, err)
@@ -192,7 +185,6 @@ func (r *ExtensionRuntime) btoaPolyfill(call goja.FunctionCall) goja.Value {
 
 // registerTextEncoderDecoder registers TextEncoder and TextDecoder classes
 func (r *ExtensionRuntime) registerTextEncoderDecoder(vm *goja.Runtime) {
-	// TextEncoder constructor
 	vm.Set("TextEncoder", func(call goja.ConstructorCall) *goja.Object {
 		encoder := call.This
 		encoder.Set("encoding", "utf-8")
@@ -204,7 +196,6 @@ func (r *ExtensionRuntime) registerTextEncoderDecoder(vm *goja.Runtime) {
 			input := call.Arguments[0].String()
 			bytes := []byte(input)
 
-			// Return as array (Uint8Array-like)
 			result := make([]interface{}, len(bytes))
 			for i, b := range bytes {
 				result[i] = int(b)
@@ -227,11 +218,9 @@ func (r *ExtensionRuntime) registerTextEncoderDecoder(vm *goja.Runtime) {
 		return nil
 	})
 
-	// TextDecoder constructor
 	vm.Set("TextDecoder", func(call goja.ConstructorCall) *goja.Object {
 		decoder := call.This
 
-		// Get encoding from arguments (default: utf-8)
 		encoding := "utf-8"
 		if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) {
 			encoding = call.Arguments[0].String()
@@ -245,7 +234,6 @@ func (r *ExtensionRuntime) registerTextEncoderDecoder(vm *goja.Runtime) {
 				return vm.ToValue("")
 			}
 
-			// Handle different input types
 			input := call.Arguments[0].Export()
 			var bytes []byte
 
@@ -265,7 +253,6 @@ func (r *ExtensionRuntime) registerTextEncoderDecoder(vm *goja.Runtime) {
 					}
 				}
 			case string:
-				// Already a string, just return it
 				return vm.ToValue(v)
 			default:
 				return vm.ToValue("")
@@ -289,7 +276,6 @@ func (r *ExtensionRuntime) registerURLClass(vm *goja.Runtime) {
 
 		urlStr := call.Arguments[0].String()
 
-		// Handle relative URLs with base
 		if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) {
 			baseStr := call.Arguments[1].String()
 			baseURL, err := url.Parse(baseStr)
@@ -446,10 +432,6 @@ func (r *ExtensionRuntime) registerURLClass(vm *goja.Runtime) {
 // registerJSONGlobal ensures JSON global is properly set up
 func (r *ExtensionRuntime) registerJSONGlobal(vm *goja.Runtime) {
 	// JSON is already built-in to Goja, but we can enhance it
-	// This ensures JSON.parse and JSON.stringify work as expected
-
-	// The built-in JSON object should already work, but let's verify
-	// and add any missing functionality if needed
 	jsonScript := `
 		if (typeof JSON === 'undefined') {
 			var JSON = {

@@ -7,8 +7,6 @@ import 'package:spotiflac_android/providers/extension_provider.dart';
 final _log = AppLogger('StoreProvider');
 final RegExp _leadingVersionPrefix = RegExp(r'^v');
 
-/// Compare two semantic version strings
-/// Returns: -1 if v1 < v2, 0 if equal, 1 if v1 > v2
 int compareVersions(String v1, String v2) {
   final parts1 = v1.replaceAll(_leadingVersionPrefix, '').split('.');
   final parts2 = v2.replaceAll(_leadingVersionPrefix, '').split('.');
@@ -25,8 +23,8 @@ int compareVersions(String v1, String v2) {
   return 0;
 }
 
-/// Extension categories
 class StoreCategory {
+
   static const String metadata = 'metadata';
   static const String download = 'download';
   static const String utility = 'utility';
@@ -111,12 +109,12 @@ class StoreExtension {
     );
   }
 
-  /// Check if this extension requires a higher app version than current
   bool get requiresNewerApp {
     if (minAppVersion == null || minAppVersion!.isEmpty) return false;
     return compareVersions(minAppVersion!, AppInfo.version) > 0;
   }
 }
+
 
 class StoreState {
   final List<StoreExtension> extensions;
@@ -164,7 +162,6 @@ class StoreState {
     );
   }
 
-  /// Get filtered extensions based on category and search
   List<StoreExtension> get filteredExtensions {
     var result = extensions;
 
@@ -186,13 +183,11 @@ class StoreState {
     return result;
   }
 
-  /// Count of extensions with updates available
   int get updatesAvailableCount {
     return extensions.where((e) => e.hasUpdate).length;
   }
 }
 
-/// Provider for managing extension store
 class StoreNotifier extends Notifier<StoreState> {
   @override
   StoreState build() {
@@ -215,7 +210,6 @@ class StoreNotifier extends Notifier<StoreState> {
     }
   }
 
-  /// Refresh extensions from store
   Future<void> refresh({bool forceRefresh = false}) async {
     state = state.copyWith(isLoading: true, clearError: true);
 
@@ -240,7 +234,6 @@ class StoreNotifier extends Notifier<StoreState> {
     }
   }
 
-  /// Set search query
   void setSearchQuery(String query) {
     state = state.copyWith(searchQuery: query);
   }
@@ -249,7 +242,6 @@ class StoreNotifier extends Notifier<StoreState> {
     state = state.copyWith(searchQuery: '', clearCategory: true);
   }
 
-  /// Download and install extension
   Future<bool> installExtension(String extensionId, String tempDir, String extensionsDir) async {
     state = state.copyWith(isDownloading: true, downloadingId: extensionId, clearError: true);
 
@@ -274,6 +266,7 @@ class StoreNotifier extends Notifier<StoreState> {
       return false;
     }
   }
+
 
   Future<bool> updateExtension(String extensionId, String tempDir) async {
     state = state.copyWith(isDownloading: true, downloadingId: extensionId, clearError: true);

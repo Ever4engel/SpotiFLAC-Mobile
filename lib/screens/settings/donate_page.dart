@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:spotiflac_android/constants/app_info.dart';
+import 'package:spotiflac_android/widgets/donate_icons.dart';
 
 class DonatePage extends StatelessWidget {
   const DonatePage({super.key});
@@ -105,28 +106,51 @@ class DonatePage extends StatelessWidget {
                   const SizedBox(height: 12),
 
                   // Notice
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: 14,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Your name will remain in this version permanently as a token of appreciation. '
-                            'The supporter list is updated manually each month and embedded directly in the app '
-                            '-- no remote server is used. Even if your support period ends, your name stays in '
-                            'every version it was included in.',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: colorScheme.onSurfaceVariant),
+                  Card(
+                    elevation: 0,
+                    color: colorScheme.surfaceContainerLow,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: 20,
+                            color: colorScheme.onSurfaceVariant,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'About Supporters',
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Your name will remain in this version permanently as a token of appreciation. '
+                                  'The supporter list is updated manually each month and embedded directly in the app '
+                                  '-- no remote server is used. Even if your support period ends, your name stays in '
+                                  'every version it was included in.',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -230,7 +254,7 @@ class _DonateLinksCard extends StatelessWidget {
           _DonateCardItem(
             title: 'Ko-fi',
             subtitle: 'ko-fi.com/zarzet',
-            icon: Icons.coffee_rounded,
+            customIcon: const KofiIcon(size: 22, color: Colors.white),
             color: const Color(0xFFFF5E5B),
             url: AppInfo.kofiUrl,
             colorScheme: colorScheme,
@@ -245,10 +269,24 @@ class _DonateLinksCard extends StatelessWidget {
           _DonateCardItem(
             title: 'Buy Me a Coffee',
             subtitle: 'buymeacoffee.com/zarzet',
-            icon: Icons.local_cafe_rounded,
+            customIcon: const BmacIcon(size: 22, color: Colors.black87),
             color: const Color(0xFFFFDD00),
-            iconColor: Colors.black87,
             url: AppInfo.bmacUrl,
+            colorScheme: colorScheme,
+          ),
+          Divider(
+            height: 1,
+            thickness: 1,
+            indent: 74,
+            endIndent: 16,
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
+          _DonateCardItem(
+            title: 'GitHub Sponsors',
+            subtitle: 'github.com/sponsors/zarzet',
+            customIcon: const GitHubIcon(size: 22, color: Colors.white),
+            color: const Color(0xFF2D333B),
+            url: AppInfo.githubSponsorsUrl,
             colorScheme: colorScheme,
           ),
         ],
@@ -260,20 +298,18 @@ class _DonateLinksCard extends StatelessWidget {
 class _DonateCardItem extends StatelessWidget {
   final String title;
   final String subtitle;
-  final IconData icon;
+  final Widget customIcon;
   final Color color;
-  final Color? iconColor;
   final String url;
   final ColorScheme colorScheme;
 
   const _DonateCardItem({
     required this.title,
     required this.subtitle,
-    required this.icon,
+    required this.customIcon,
     required this.color,
     required this.url,
     required this.colorScheme,
-    this.iconColor,
   });
 
   @override
@@ -292,7 +328,7 @@ class _DonateCardItem extends StatelessWidget {
                 color: color,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: iconColor ?? Colors.white, size: 22),
+              child: Center(child: customIcon),
             ),
             const SizedBox(width: 14),
             Expanded(

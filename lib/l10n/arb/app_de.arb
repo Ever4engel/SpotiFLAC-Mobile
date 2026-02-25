@@ -316,7 +316,7 @@
   "@optionsAutoSkipUnavailableTracksSubtitleOn": {
     "description": "Subtitle when auto skip on resolve failure is enabled"
   },
-  "optionsAutoSkipUnavailableTracksSubtitleOff": "Stop on failed track resolution and show an error.",
+  "optionsAutoSkipUnavailableTracksSubtitleOff": "Beim Fehlschlagen der Titelerkennung anhalten und einen Fehler anzeigen.",
   "@optionsAutoSkipUnavailableTracksSubtitleOff": {
     "description": "Subtitle when auto skip on resolve failure is disabled"
   },
@@ -324,7 +324,7 @@
   "@optionsInteractionMode": {
     "description": "Tap behavior mode for track lists"
   },
-  "modeDownloader": "Downloader Mode",
+  "modeDownloader": "Downloader-Modus",
   "@modeDownloader": {
     "description": "Interaction mode where taps queue downloads"
   },
@@ -1372,7 +1372,7 @@
   "@errorNoTracksFound": {
     "description": "Error - search returned no results"
   },
-  "errorSeekNotSupported": "Seeking is not supported for this live stream",
+  "errorSeekNotSupported": "Suche wird für diesen Live-Stream nicht unterstützt",
   "@errorSeekNotSupported": {
     "description": "Error - seek disabled for live decrypted stream"
   },
@@ -2459,7 +2459,7 @@
   "@extensionsNoMetadataProvider": {
     "description": "Empty state - no metadata providers"
   },
-  "extensionsSearchProvider": "Search Provider",
+  "extensionsSearchProvider": "Such-Provider",
   "@extensionsSearchProvider": {
     "description": "Setting - search provider selection"
   },
@@ -2590,7 +2590,7 @@
   "@youtubeBitrateFieldLabel": {
     "description": "Label for YouTube bitrate input field"
   },
-  "youtubeBitrateValidationError": "Bitrate must be between {min} and {max} kbps",
+  "youtubeBitrateValidationError": "Bitrate muss zwischen {min} und {max} kbps liegen",
   "@youtubeBitrateValidationError": {
     "description": "Validation error for invalid YouTube bitrate input",
     "placeholders": {
@@ -2622,7 +2622,7 @@
   "@downloadUseAlbumArtistForFolders": {
     "description": "Setting - choose whether artist folders use Album Artist or Track Artist"
   },
-  "downloadUseAlbumArtistForFoldersAlbumSubtitle": "Artist folders use Album Artist when available",
+  "downloadUseAlbumArtistForFoldersAlbumSubtitle": "Künstlerordner verwenden den Album-Interpreten, wenn verfügbar",
   "@downloadUseAlbumArtistForFoldersAlbumSubtitle": {
     "description": "Subtitle when Album Artist is used for folder naming"
   },
@@ -2658,7 +2658,7 @@
   "@downloadFrom": {
     "description": "Label - download source"
   },
-  "downloadDefaultQualityLabel": "Default Quality",
+  "downloadDefaultQualityLabel": "Standard-Qualität",
   "@downloadDefaultQualityLabel": {
     "description": "Label - default quality setting"
   },
@@ -2742,7 +2742,7 @@
   "@queueClearAll": {
     "description": "Button - clear all queue items"
   },
-  "queueClearAllMessage": "Are you sure you want to clear all downloads?",
+  "queueClearAllMessage": "Bist du dir sicher, dass du alle Downloads löschen möchten?",
   "@queueClearAllMessage": {
     "description": "Clear queue confirmation"
   },
@@ -3150,7 +3150,7 @@
   "@libraryTitle": {
     "description": "Library settings page title"
   },
-  "libraryStatus": "Library Status",
+  "libraryStatus": "Bibliotheksstatus",
   "@libraryStatus": {
     "description": "Section header for library status"
   },
@@ -3166,7 +3166,7 @@
   "@libraryEnableLocalLibrarySubtitle": {
     "description": "Subtitle for enable toggle"
   },
-  "libraryFolder": "Library Folder",
+  "libraryFolder": "Bibliotheksordner",
   "@libraryFolder": {
     "description": "Folder selection setting"
   },
@@ -3202,7 +3202,7 @@
   "@libraryCleanupMissingFiles": {
     "description": "Button to remove entries for missing files"
   },
-  "libraryCleanupMissingFilesSubtitle": "Remove entries for files that no longer exist",
+  "libraryCleanupMissingFilesSubtitle": "Verlaufseinträge für Dateien löschen, die nicht mehr existieren",
   "@libraryCleanupMissingFilesSubtitle": {
     "description": "Subtitle for cleanup button"
   },
@@ -3230,7 +3230,7 @@
   "@libraryAboutDescription": {
     "description": "Description of local library feature"
   },
-  "libraryTracksCount": "{count} tracks",
+  "libraryTracksCount": "{count} Titel",
   "@libraryTracksCount": {
     "description": "Track count in library",
     "placeholders": {
@@ -3617,11 +3617,11 @@
   "@tutorialExtensionsTip1": {
     "description": "Tutorial extensions tip 1"
   },
-  "tutorialExtensionsTip2": "Add new download providers or search sources",
+  "tutorialExtensionsTip2": "Neue Download- oder Suchanbieter hinzufügen",
   "@tutorialExtensionsTip2": {
     "description": "Tutorial extensions tip 2"
   },
-  "tutorialExtensionsTip3": "Get lyrics, enhanced metadata, and more features",
+  "tutorialExtensionsTip3": "Lyrics, erweiterte Metadaten und mehr Funktionen erhalten",
   "@tutorialExtensionsTip3": {
     "description": "Tutorial extensions tip 3"
   },
@@ -3633,7 +3633,7 @@
   "@tutorialSettingsDesc": {
     "description": "Tutorial settings page description"
   },
-  "tutorialSettingsTip1": "Change download location and folder organization",
+  "tutorialSettingsTip1": "Downloadverzeichnis und Ordnerorganisation ändern",
   "@tutorialSettingsTip1": {
     "description": "Tutorial settings tip 1"
   },
@@ -3669,7 +3669,7 @@
   "@cleanupOrphanedDownloadsSubtitle": {
     "description": "Subtitle for orphaned cleanup button"
   },
-  "cleanupOrphanedDownloadsResult": "Removed {count} orphaned entries from history",
+  "cleanupOrphanedDownloadsResult": "Entfernte {count} verwaiste Einträge aus dem Verlauf",
   "@cleanupOrphanedDownloadsResult": {
     "description": "Snackbar after orphan cleanup",
     "placeholders": {
@@ -3686,7 +3686,7 @@
   "@cacheTitle": {
     "description": "Cache management page title"
   },
-  "cacheSummaryTitle": "Cache overview",
+  "cacheSummaryTitle": "Cache-Übersicht",
   "@cacheSummaryTitle": {
     "description": "Heading for cache summary card"
   },
@@ -3763,7 +3763,7 @@
   "@cacheCleanupUnusedDesc": {
     "description": "Description of what cleanup unused data does"
   },
-  "cacheNoData": "No cached data",
+  "cacheNoData": "Keine gecachten Daten",
   "@cacheNoData": {
     "description": "Label when cache category has no data"
   },
@@ -3855,7 +3855,7 @@
   "@cacheRefreshStats": {
     "description": "Button label to refresh cache statistics"
   },
-  "trackSaveCoverArt": "Save Cover Art",
+  "trackSaveCoverArt": "Cover speichern",
   "@trackSaveCoverArt": {
     "description": "Menu action - save album cover art as file"
   },
@@ -3938,7 +3938,7 @@
       }
     }
   },
-  "trackConvertFormat": "Convert Format",
+  "trackConvertFormat": "Format konvertieren",
   "@trackConvertFormat": {
     "description": "Menu item - convert audio format"
   },
@@ -4030,11 +4030,11 @@
   "@collectionNoPlaylistsYet": {
     "description": "Empty state title when user has no playlists"
   },
-  "collectionNoPlaylistsSubtitle": "Create a playlist to start categorizing tracks",
+  "collectionNoPlaylistsSubtitle": "Playlist erstellen, um Titel zu kategorisieren",
   "@collectionNoPlaylistsSubtitle": {
     "description": "Empty state subtitle when user has no playlists"
   },
-  "collectionPlaylistTracks": "{count, plural, =1{1 track} other{{count} tracks}}",
+  "collectionPlaylistTracks": "{count, plural, =1{1 Titel} other{{count} Titel}}",
   "@collectionPlaylistTracks": {
     "description": "Track count label for custom playlists",
     "placeholders": {
@@ -4061,7 +4061,7 @@
       }
     }
   },
-  "collectionPlaylistCreated": "Playlist created",
+  "collectionPlaylistCreated": "Playlist erstellt",
   "@collectionPlaylistCreated": {
     "description": "Snackbar after creating playlist"
   },
@@ -4081,7 +4081,7 @@
   "@collectionDeletePlaylist": {
     "description": "Action to delete playlist"
   },
-  "collectionDeletePlaylistMessage": "Delete \"{playlistName}\" and all tracks inside it?",
+  "collectionDeletePlaylistMessage": "Willst du \"{playlistName}\" und alle darin enthaltenen Titel löschen?",
   "@collectionDeletePlaylistMessage": {
     "description": "Confirmation message for deleting playlist",
     "placeholders": {
@@ -4256,7 +4256,7 @@
       }
     }
   },
-  "selectionBatchConvertSuccess": "Converted {success} of {total} tracks to {format}",
+  "selectionBatchConvertSuccess": "{success} von {total} Titeln in {format} konvertiert",
   "@selectionBatchConvertSuccess": {
     "description": "Snackbar after batch conversion completes",
     "placeholders": {
@@ -4287,7 +4287,7 @@
   "@setupModeDownloaderFeature1": {
     "description": "Downloader mode feature 1"
   },
-  "setupModeDownloaderFeature2": "Save music to your device for offline listening",
+  "setupModeDownloaderFeature2": "Speichere Musik auf deinem Gerät, um sie offline anzuhören",
   "@setupModeDownloaderFeature2": {
     "description": "Downloader mode feature 2"
   },
@@ -4303,15 +4303,15 @@
   "@setupModeStreamingFeature1": {
     "description": "Streaming mode feature 1"
   },
-  "setupModeStreamingFeature2": "Smart Queue auto-discovers new music for you",
+  "setupModeStreamingFeature2": "Die smarte Warteschlange entdeckt automatisch neue Musik für dich",
   "@setupModeStreamingFeature2": {
     "description": "Streaming mode feature 2"
   },
-  "setupModeStreamingFeature3": "Play any track on demand with playback controls",
+  "setupModeStreamingFeature3": "Bei Bedarf jeden Track mit Wiedergabesteuerungen abspielen",
   "@setupModeStreamingFeature3": {
     "description": "Streaming mode feature 3"
   },
-  "setupModeChangeableLater": "You can switch between modes anytime in Settings.",
+  "setupModeChangeableLater": "Du kannst jederzeit in den Einstellungen zwischen den Modi wechseln.",
   "@setupModeChangeableLater": {
     "description": "Hint that mode can be changed later"
   },
@@ -4327,7 +4327,7 @@
   "@whatsNewTitle": {
     "description": "Title for the What's New screen"
   },
-  "whatsNewSubtitle": "SpotiFLAC has evolved — here's what changed since 3.x",
+  "whatsNewSubtitle": "SpotiFLAC hat sich weiterentwickelt hier ist was sich seit 3.x geändert hat",
   "@whatsNewSubtitle": {
     "description": "Subtitle for the What's New screen"
   },
@@ -4351,7 +4351,7 @@
   "@whatsNewWelcomeTip3": {
     "description": "Welcome page tip 3"
   },
-  "whatsNewStreamingTitle": "Streaming Mode",
+  "whatsNewStreamingTitle": "Streaming-Modus",
   "@whatsNewStreamingTitle": {
     "description": "What's New feature: Streaming Mode title"
   },
@@ -4359,7 +4359,7 @@
   "@whatsNewStreamingDesc": {
     "description": "What's New feature: Streaming Mode description"
   },
-  "whatsNewSmartQueueTitle": "Smart Queue",
+  "whatsNewSmartQueueTitle": "Smarte Warteschlange",
   "@whatsNewSmartQueueTitle": {
     "description": "What's New feature: Smart Queue title"
   },
@@ -4367,7 +4367,7 @@
   "@whatsNewSmartQueueDesc": {
     "description": "What's New feature: Smart Queue description"
   },
-  "whatsNewDualModeTitle": "Dual Mode",
+  "whatsNewDualModeTitle": "Dual-Modus",
   "@whatsNewDualModeTitle": {
     "description": "What's New feature: Dual Mode title"
   },
@@ -4407,7 +4407,7 @@
   "@whatsNewPerformanceDesc": {
     "description": "What's New feature: Performance description"
   },
-  "whatsNewBatchToolsTitle": "Batch Tools",
+  "whatsNewBatchToolsTitle": "Batch-Tools",
   "@whatsNewBatchToolsTitle": {
     "description": "What's New feature: Batch Tools title"
   },
@@ -4447,7 +4447,7 @@
   "@whatsNewDualModeTip2": {
     "description": "What's New tip: dual mode adaptive UI"
   },
-  "whatsNewDualModeTip3": "Download for offline, stream for instant play",
+  "whatsNewDualModeTip3": "Download für Offline, Stream für Sofortwiedergabe",
   "@whatsNewDualModeTip3": {
     "description": "What's New tip: dual mode use cases"
   },

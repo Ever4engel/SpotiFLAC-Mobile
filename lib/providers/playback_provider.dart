@@ -378,6 +378,17 @@ class PlaybackController extends Notifier<PlaybackState> {
       }
     });
 
+    ref.listen<String>(settingsProvider.select((s) => s.playerMode), (
+      previous,
+      next,
+    ) {
+      if (previous == next) return;
+      if (next != 'external') return;
+      final current = state.currentItem;
+      if (current == null || !current.isLocal) return;
+      unawaited(dismissPlayer());
+    });
+
     _subscriptions.add(
       _player.playerStateStream.listen((playerState) {
         final playing = playerState.playing;
@@ -1746,21 +1757,28 @@ class PlaybackController extends Notifier<PlaybackState> {
     _updateMediaItemNotification(item);
 
     try {
+      await FFmpegService.stopLiveDecryptedStream();
+      await FFmpegService.stopNativeDashManifestPlayback();
+      await _player.stop();
       await openFile(externalPath);
       if (expectedRequestEpoch != null &&
           !_isPlayRequestCurrent(expectedRequestEpoch)) {
         return true;
       }
       state = state.copyWith(
-        currentItem: item,
+        clearCurrentItem: true,
+        queue: const [],
+        currentIndex: -1,
         isLoading: false,
         isBuffering: false,
         isPlaying: false,
         seekSupported: false,
         position: Duration.zero,
         bufferedPosition: Duration.zero,
-        duration: _fallbackDurationForItem(item),
+        duration: Duration.zero,
         clearError: true,
+        clearLyrics: true,
+        lyricsLoading: false,
       );
       _syncServicePlaybackState(ProcessingState.idle, false);
       unawaited(_savePlaybackSnapshot());

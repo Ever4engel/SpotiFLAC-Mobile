@@ -826,7 +826,7 @@ class _AlbumTrackItem extends ConsumerWidget {
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
               ),
-              if (isInLocalLibrary) ...[
+              if (isInLocalLibrary || isInHistory) ...[
                 const SizedBox(width: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(

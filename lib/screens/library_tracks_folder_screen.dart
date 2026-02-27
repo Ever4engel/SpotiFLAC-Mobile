@@ -798,7 +798,7 @@ class _LibraryTracksFolderScreenState
                                 _buildShuffleButton(entries),
                                 const SizedBox(width: 12),
                               ],
-                              _buildDownloadAllCenterButton(context, entries),
+                              _buildPlayAllCenterButton(entries),
                             ],
                           ),
                         ],
@@ -831,7 +831,7 @@ class _LibraryTracksFolderScreenState
     );
   }
 
-  // ── Shuffle / Download buttons ──
+  // ── Shuffle / Play buttons ──
 
   Widget _buildShuffleButton(List<CollectionTrackEntry> entries) {
     return Container(
@@ -854,15 +854,12 @@ class _LibraryTracksFolderScreenState
     );
   }
 
-  Widget _buildDownloadAllCenterButton(
-    BuildContext context,
-    List<CollectionTrackEntry> entries,
-  ) {
+  Widget _buildPlayAllCenterButton(List<CollectionTrackEntry> entries) {
     final tracks = entries.map((e) => e.track).toList(growable: false);
     return FilledButton.icon(
-      onPressed: tracks.isEmpty ? null : () => _downloadAll(context, tracks),
-      icon: const Icon(Icons.download_rounded, size: 18),
-      label: Text(context.l10n.downloadAllCount(tracks.length)),
+      onPressed: tracks.isEmpty ? null : () => _playAll(tracks),
+      icon: const Icon(Icons.play_arrow_rounded, size: 18),
+      label: Text(context.l10n.playAllCount(tracks.length)),
       style: FilledButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
@@ -885,65 +882,15 @@ class _LibraryTracksFolderScreenState
     });
   }
 
-  void _downloadAll(BuildContext context, List<Track> tracks) {
+  void _playAll(List<Track> tracks) {
     if (tracks.isEmpty) return;
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        final colorScheme = Theme.of(dialogContext).colorScheme;
-        return AlertDialog(
-          backgroundColor: colorScheme.surfaceContainerHigh,
-          title: const Text('Download All'),
-          content: Text('Download ${tracks.length} tracks?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(context.l10n.dialogCancel),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                _executeDownloadAll(context, tracks);
-              },
-              child: const Text('Download'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _executeDownloadAll(BuildContext context, List<Track> tracks) {
-    final settings = ref.read(settingsProvider);
-    if (settings.askQualityBeforeDownload) {
-      DownloadServicePicker.show(
-        context,
-        trackName: '${tracks.length} tracks',
-        artistName: '',
-        onSelect: (quality, service) {
-          ref
-              .read(downloadQueueProvider.notifier)
-              .addMultipleToQueue(tracks, service, qualityOverride: quality);
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                context.l10n.snackbarAddedTracksToQueue(tracks.length),
-              ),
-            ),
-          );
-        },
+    final messenger = ScaffoldMessenger.of(context);
+    ref.read(playbackProvider.notifier).playTrackList(tracks).catchError((e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Cannot play local tracks: $e')),
       );
-    } else {
-      ref
-          .read(downloadQueueProvider.notifier)
-          .addMultipleToQueue(tracks, settings.defaultService);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.snackbarAddedTracksToQueue(tracks.length)),
-        ),
-      );
-    }
+    });
   }
 
   void _showCoverOptionsSheet(BuildContext context, bool hasCustomCover) {

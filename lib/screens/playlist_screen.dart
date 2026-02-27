@@ -10,8 +10,8 @@ import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/providers/local_library_provider.dart';
-import 'package:spotiflac_android/providers/playback_provider.dart';
 import 'package:spotiflac_android/widgets/download_service_picker.dart';
+import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
 import 'package:spotiflac_android/widgets/track_collection_quick_actions.dart';
 
 class PlaylistScreen extends ConsumerStatefulWidget {
@@ -308,7 +308,7 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
                               const SizedBox(width: 12),
                               _buildDownloadAllCenterButton(context),
                               const SizedBox(width: 12),
-                              _buildShufflePlayButton(),
+                              _buildAddToPlaylistButton(context),
                             ],
                           ),
                         ],
@@ -505,24 +505,14 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     );
   }
 
-  Widget _buildShufflePlayButton() {
+  Widget _buildAddToPlaylistButton(BuildContext context) {
     return _buildCircleButton(
-      icon: Icons.shuffle_rounded,
-      tooltip: 'Shuffle Play',
-      onPressed: _tracks.isEmpty ? null : _shufflePlayLocal,
+      icon: Icons.playlist_add,
+      tooltip: 'Add to Playlist',
+      onPressed: _tracks.isEmpty
+          ? null
+          : () => showAddTracksToPlaylistSheet(context, ref, _tracks),
     );
-  }
-
-  void _shufflePlayLocal() {
-    if (_tracks.isEmpty) return;
-    final shuffled = [..._tracks]..shuffle();
-    final messenger = ScaffoldMessenger.of(context);
-    ref.read(playbackProvider.notifier).playTrackList(shuffled).catchError((e) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('Cannot shuffle play local tracks: $e')),
-      );
-    });
   }
 
   void _confirmDownloadAll(BuildContext context) {
@@ -717,7 +707,7 @@ class _PlaylistTrackItem extends ConsumerWidget {
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
               ),
-              if (isInLocalLibrary) ...[
+              if (isInLocalLibrary || isInHistory) ...[
                 const SizedBox(width: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(

@@ -66,6 +66,9 @@ Python library for SpotiFLAC integration, maintained by [@ShuShuzinhuu](https://
 
 ---
 
+### [SpotiFLAC (Python Module)](https://github.com/ShuShuzinhuu/SpotiFLAC-Module-Version)
+SpotiFLAC Python library for SpotiFLAC integration — maintained by [@ShuShuzinhuu](https://github.com/ShuShuzinhuu)
+
 ## FAQ
 
 <details>

@@ -2946,8 +2946,9 @@ class MainActivity: FlutterFragmentActivity() {
                         }
                         "searchDeezerByISRC" -> {
                             val isrc = call.argument<String>("isrc") ?: ""
+                            val itemId = call.argument<String>("item_id") ?: ""
                             val response = withContext(Dispatchers.IO) {
-                                Gobackend.searchDeezerByISRC(isrc)
+                                Gobackend.searchDeezerByISRCForItemID(isrc, itemId)
                             }
                             result.success(response)
                         }

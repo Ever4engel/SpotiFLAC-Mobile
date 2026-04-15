@@ -2,6 +2,7 @@ package gobackend
 
 import (
 	"context"
+	"fmt"
 	"testing"
 )
 
@@ -173,6 +174,98 @@ func TestFormatMusicBrainzGenrePrefersHighestCountTag(t *testing.T) {
 
 	if got != "Pop" {
 		t.Fatalf("genre = %q, want %q", got, "Pop")
+	}
+}
+
+func TestSelectMusicBrainzAlbumArtistPrefersMatchingRelease(t *testing.T) {
+	releases := []musicBrainzRelease{
+		{
+			Title: "Other Album",
+			ArtistCredit: []musicBrainzArtistCredit{
+				{Name: "Wrong Artist"},
+			},
+		},
+		{
+			Title: "Target Album",
+			ArtistCredit: []musicBrainzArtistCredit{
+				{Name: "Artist A", JoinPhrase: " & "},
+				{Name: "Artist B"},
+			},
+		},
+	}
+
+	got := selectMusicBrainzAlbumArtist(releases, "Target Album")
+	if got != "Artist A & Artist B" {
+		t.Fatalf("album artist = %q, want matching release artist credit", got)
+	}
+}
+
+func TestEnrichRequestExtendedMetadataUsesMusicBrainzAlbumArtist(t *testing.T) {
+	origDeezerFetcher := fetchDeezerExtendedMetadataByISRC
+	origMusicBrainzGenreFetcher := fetchMusicBrainzGenreByISRC
+	origMusicBrainzAlbumArtistFetcher := fetchMusicBrainzAlbumArtistByISRC
+	defer func() {
+		fetchDeezerExtendedMetadataByISRC = origDeezerFetcher
+		fetchMusicBrainzGenreByISRC = origMusicBrainzGenreFetcher
+		fetchMusicBrainzAlbumArtistByISRC = origMusicBrainzAlbumArtistFetcher
+	}()
+
+	fetchDeezerExtendedMetadataByISRC = func(ctx context.Context, isrc string) (*AlbumExtendedMetadata, error) {
+		return &AlbumExtendedMetadata{}, nil
+	}
+	fetchMusicBrainzGenreByISRC = func(isrc string) (string, error) {
+		return "", fmt.Errorf("no genre")
+	}
+	fetchMusicBrainzAlbumArtistByISRC = func(isrc string, albumName string) (string, error) {
+		if isrc != "TESTISRC" || albumName != "Target Album" {
+			t.Fatalf("unexpected MusicBrainz args: %q / %q", isrc, albumName)
+		}
+		return "MusicBrainz Album Artist", nil
+	}
+
+	req := DownloadRequest{
+		ISRC:       "TESTISRC",
+		ArtistName: "Track Artist",
+		AlbumName:  "Target Album",
+	}
+
+	enrichRequestExtendedMetadata(&req)
+
+	if req.AlbumArtist != "MusicBrainz Album Artist" {
+		t.Fatalf("album artist = %q, want MusicBrainz value", req.AlbumArtist)
+	}
+}
+
+func TestEnrichRequestExtendedMetadataDoesNotFallbackAlbumArtistToTrackArtist(t *testing.T) {
+	origDeezerFetcher := fetchDeezerExtendedMetadataByISRC
+	origMusicBrainzGenreFetcher := fetchMusicBrainzGenreByISRC
+	origMusicBrainzAlbumArtistFetcher := fetchMusicBrainzAlbumArtistByISRC
+	defer func() {
+		fetchDeezerExtendedMetadataByISRC = origDeezerFetcher
+		fetchMusicBrainzGenreByISRC = origMusicBrainzGenreFetcher
+		fetchMusicBrainzAlbumArtistByISRC = origMusicBrainzAlbumArtistFetcher
+	}()
+
+	fetchDeezerExtendedMetadataByISRC = func(ctx context.Context, isrc string) (*AlbumExtendedMetadata, error) {
+		return &AlbumExtendedMetadata{}, nil
+	}
+	fetchMusicBrainzGenreByISRC = func(isrc string) (string, error) {
+		return "", fmt.Errorf("no genre")
+	}
+	fetchMusicBrainzAlbumArtistByISRC = func(isrc string, albumName string) (string, error) {
+		return "", fmt.Errorf("no album artist")
+	}
+
+	req := DownloadRequest{
+		ISRC:       "TESTISRC",
+		ArtistName: "Track Artist",
+		AlbumName:  "Target Album",
+	}
+
+	enrichRequestExtendedMetadata(&req)
+
+	if req.AlbumArtist != "" {
+		t.Fatalf("album artist = %q, want empty when MusicBrainz has no value", req.AlbumArtist)
 	}
 }
 

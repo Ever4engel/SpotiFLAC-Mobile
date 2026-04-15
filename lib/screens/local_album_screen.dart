@@ -891,7 +891,7 @@ class _LocalAlbumScreenState extends ConsumerState<LocalAlbumScreen> {
       'track_name': item.trackName,
       'artist_name': item.artistName,
       'album_name': item.albumName,
-      'album_artist': item.albumArtist ?? item.artistName,
+      'album_artist': item.albumArtist ?? '',
       'track_number': item.trackNumber ?? 0,
       'disc_number': item.discNumber ?? 0,
       'release_date': item.releaseDate ?? '',

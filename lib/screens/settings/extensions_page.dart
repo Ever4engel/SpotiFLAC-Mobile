@@ -859,9 +859,13 @@ class _HomeFeedProviderSelector extends ConsumerWidget {
         .toList();
 
     final hasAnyProvider = homeFeedProviders.isNotEmpty;
+    final homeFeedDisabled =
+        settings.homeFeedProvider == AppSettings.homeFeedProviderOff;
 
     String currentProviderName = context.l10n.extensionsHomeFeedAuto;
-    if (settings.homeFeedProvider != null &&
+    if (homeFeedDisabled) {
+      currentProviderName = context.l10n.extensionsHomeFeedOff;
+    } else if (settings.homeFeedProvider != null &&
         settings.homeFeedProvider!.isNotEmpty) {
       final ext = homeFeedProviders
           .where((e) => e.id == settings.homeFeedProvider)
@@ -873,23 +877,19 @@ class _HomeFeedProviderSelector extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         InkWell(
-          onTap: !hasAnyProvider
-              ? null
-              : () => _showHomeFeedProviderPicker(
-                  context,
-                  ref,
-                  settings,
-                  homeFeedProviders,
-                ),
+          onTap: () => _showHomeFeedProviderPicker(
+            context,
+            ref,
+            settings,
+            homeFeedProviders,
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 Icon(
                   Icons.explore_outlined,
-                  color: !hasAnyProvider
-                      ? colorScheme.outline
-                      : colorScheme.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -898,13 +898,11 @@ class _HomeFeedProviderSelector extends ConsumerWidget {
                     children: [
                       Text(
                         context.l10n.extensionsHomeFeedProvider,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: !hasAnyProvider ? colorScheme.outline : null,
-                        ),
+                        style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        !hasAnyProvider
+                        !hasAnyProvider && !homeFeedDisabled
                             ? context.l10n.extensionsNoHomeFeedExtensions
                             : currentProviderName,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -914,12 +912,7 @@ class _HomeFeedProviderSelector extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.chevron_right,
-                  color: !hasAnyProvider
-                      ? colorScheme.outline
-                      : colorScheme.onSurfaceVariant,
-                ),
+                Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
               ],
             ),
           ),
@@ -982,6 +975,31 @@ class _HomeFeedProviderSelector extends ConsumerWidget {
                   Navigator.pop(ctx);
                 },
               ),
+              ListTile(
+                leading: Icon(Icons.block, color: colorScheme.error),
+                title: Text(ctx.l10n.extensionsHomeFeedOff),
+                subtitle: Text(ctx.l10n.extensionsHomeFeedOffSubtitle),
+                trailing:
+                    settings.homeFeedProvider == AppSettings.homeFeedProviderOff
+                    ? Icon(Icons.check_circle, color: colorScheme.primary)
+                    : Icon(Icons.circle_outlined, color: colorScheme.outline),
+                onTap: () {
+                  ref
+                      .read(settingsProvider.notifier)
+                      .setHomeFeedProvider(AppSettings.homeFeedProviderOff);
+                  ref.read(exploreProvider.notifier).clear();
+                  Navigator.pop(ctx);
+                },
+              ),
+              if (homeFeedProviders.isEmpty)
+                ListTile(
+                  enabled: false,
+                  leading: Icon(
+                    Icons.extension_off,
+                    color: colorScheme.outline,
+                  ),
+                  title: Text(ctx.l10n.extensionsNoHomeFeedExtensions),
+                ),
               ...homeFeedProviders.map(
                 (ext) => ListTile(
                   leading: Icon(Icons.extension, color: colorScheme.secondary),

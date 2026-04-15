@@ -397,7 +397,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
       artistName: (data['artists'] ?? data['artist'] ?? '').toString(),
       albumName: (data['album_name'] ?? data['album'] ?? album?.name ?? '')
           .toString(),
-      albumArtist: data['album_artist']?.toString() ?? widget.artistName,
+      albumArtist: normalizeOptionalString(data['album_artist']?.toString()),
       artistId:
           (data['artist_id'] ?? data['artistId'])?.toString() ??
           widget.artistId,
@@ -1124,7 +1124,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
       name: (data['title'] ?? data['name'] ?? '').toString(),
       artistName: artistName,
       albumName: album.name,
-      albumArtist: widget.artistName,
+      albumArtist: null,
       artistId: widget.artistId,
       albumId: album.id.isNotEmpty ? album.id : null,
       coverUrl: album.coverUrl,

@@ -3307,6 +3307,13 @@ class AppLocalizationsTr extends AppLocalizations {
       'Automatically select the best available';
 
   @override
+  String get extensionsHomeFeedOff => 'Off';
+
+  @override
+  String get extensionsHomeFeedOffSubtitle =>
+      'Do not show the home feed on the main screen';
+
+  @override
   String extensionsHomeFeedUse(String extensionName) {
     return 'Use $extensionName home feed';
   }

@@ -227,6 +227,10 @@ func (p *extensionProviderWrapper) lockReadyVM() error {
 }
 
 func (p *extensionProviderWrapper) SearchTracks(query string, limit int) (*ExtSearchResult, error) {
+	return p.SearchTracksForItemID(query, limit, "")
+}
+
+func (p *extensionProviderWrapper) SearchTracksForItemID(query string, limit int, itemID string) (*ExtSearchResult, error) {
 	if !p.extension.Manifest.IsMetadataProvider() {
 		return nil, fmt.Errorf("extension '%s' is not a metadata provider", p.extension.ID)
 	}
@@ -238,6 +242,17 @@ func (p *extensionProviderWrapper) SearchTracks(query string, limit int) (*ExtSe
 		return nil, err
 	}
 	defer p.extension.VMMu.Unlock()
+	if itemID != "" {
+		if p.extension.runtime != nil {
+			p.extension.runtime.setActiveDownloadItemID(itemID)
+			defer p.extension.runtime.clearActiveDownloadItemID()
+		}
+		initDownloadCancel(itemID)
+		defer clearDownloadCancel(itemID)
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
+	}
 
 	script := fmt.Sprintf(`
 		(function() {
@@ -250,10 +265,16 @@ func (p *extensionProviderWrapper) SearchTracks(query string, limit int) (*ExtSe
 
 	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
 		if IsTimeoutError(err) {
 			return nil, fmt.Errorf("searchTracks timeout: extension took too long to respond")
 		}
 		return nil, fmt.Errorf("searchTracks failed: %w", err)
+	}
+	if isDownloadCancelled(itemID) {
+		return nil, ErrDownloadCancelled
 	}
 
 	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
@@ -443,6 +464,10 @@ func (p *extensionProviderWrapper) GetArtist(artistID string) (*ExtArtistMetadat
 }
 
 func (p *extensionProviderWrapper) EnrichTrack(track *ExtTrackMetadata) (*ExtTrackMetadata, error) {
+	return p.EnrichTrackForItemID(track, "")
+}
+
+func (p *extensionProviderWrapper) EnrichTrackForItemID(track *ExtTrackMetadata, itemID string) (*ExtTrackMetadata, error) {
 	if !p.extension.Manifest.IsMetadataProvider() {
 		return track, nil
 	}
@@ -455,6 +480,17 @@ func (p *extensionProviderWrapper) EnrichTrack(track *ExtTrackMetadata) (*ExtTra
 		return track, nil
 	}
 	defer p.extension.VMMu.Unlock()
+	if itemID != "" {
+		if p.extension.runtime != nil {
+			p.extension.runtime.setActiveDownloadItemID(itemID)
+			defer p.extension.runtime.clearActiveDownloadItemID()
+		}
+		initDownloadCancel(itemID)
+		defer clearDownloadCancel(itemID)
+		if isDownloadCancelled(itemID) {
+			return track, ErrDownloadCancelled
+		}
+	}
 
 	trackJSON, err := json.Marshal(track)
 	if err != nil {
@@ -474,12 +510,18 @@ func (p *extensionProviderWrapper) EnrichTrack(track *ExtTrackMetadata) (*ExtTra
 
 	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if isDownloadCancelled(itemID) {
+			return track, ErrDownloadCancelled
+		}
 		if IsTimeoutError(err) {
 			GoLog("[Extension] EnrichTrack timeout for %s\n", p.extension.ID)
 		} else {
 			GoLog("[Extension] EnrichTrack error for %s: %v\n", p.extension.ID, err)
 		}
 		return track, nil
+	}
+	if isDownloadCancelled(itemID) {
+		return track, ErrDownloadCancelled
 	}
 
 	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
@@ -505,6 +547,10 @@ func (p *extensionProviderWrapper) EnrichTrack(track *ExtTrackMetadata) (*ExtTra
 }
 
 func (p *extensionProviderWrapper) CheckAvailability(isrc, trackName, artistName, spotifyID, deezerID string) (*ExtAvailabilityResult, error) {
+	return p.CheckAvailabilityForItemID(isrc, trackName, artistName, spotifyID, deezerID, "")
+}
+
+func (p *extensionProviderWrapper) CheckAvailabilityForItemID(isrc, trackName, artistName, spotifyID, deezerID string, itemID string) (*ExtAvailabilityResult, error) {
 	if !p.extension.Manifest.IsDownloadProvider() {
 		return nil, fmt.Errorf("extension '%s' is not a download provider", p.extension.ID)
 	}
@@ -516,6 +562,17 @@ func (p *extensionProviderWrapper) CheckAvailability(isrc, trackName, artistName
 		return nil, err
 	}
 	defer p.extension.VMMu.Unlock()
+	if itemID != "" {
+		if p.extension.runtime != nil {
+			p.extension.runtime.setActiveDownloadItemID(itemID)
+			defer p.extension.runtime.clearActiveDownloadItemID()
+		}
+		initDownloadCancel(itemID)
+		defer clearDownloadCancel(itemID)
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
+	}
 
 	script := fmt.Sprintf(`
 		(function() {
@@ -528,10 +585,16 @@ func (p *extensionProviderWrapper) CheckAvailability(isrc, trackName, artistName
 
 	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
 		if IsTimeoutError(err) {
 			return nil, fmt.Errorf("checkAvailability timeout: extension took too long to respond")
 		}
 		return nil, fmt.Errorf("checkAvailability failed: %w", err)
+	}
+	if isDownloadCancelled(itemID) {
+		return nil, ErrDownloadCancelled
 	}
 
 	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
@@ -785,6 +848,38 @@ var metadataProviderPriorityMu sync.RWMutex
 
 var searchBuiltInMetadataTracksFunc = searchBuiltInMetadataTracks
 
+func searchBuiltInMetadataTracksForItemID(providerID, query string, limit int, itemID string) ([]ExtTrackMetadata, error) {
+	if itemID == "" {
+		return searchBuiltInMetadataTracksFunc(providerID, query, limit)
+	}
+
+	ctx := initDownloadCancel(itemID)
+	defer clearDownloadCancel(itemID)
+	if isDownloadCancelled(itemID) {
+		return nil, ErrDownloadCancelled
+	}
+
+	type searchResult struct {
+		tracks []ExtTrackMetadata
+		err    error
+	}
+	done := make(chan searchResult, 1)
+	go func() {
+		tracks, err := searchBuiltInMetadataTracksFunc(providerID, query, limit)
+		done <- searchResult{tracks: tracks, err: err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, ErrDownloadCancelled
+	case result := <-done:
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
+		return result.tracks, result.err
+	}
+}
+
 func SetProviderPriority(providerIDs []string) {
 	providerPriorityMu.Lock()
 	defer providerPriorityMu.Unlock()
@@ -816,6 +911,9 @@ func sanitizeDownloadProviderPriority(providerIDs []string) []string {
 		}
 
 		normalizedBuiltIn := strings.ToLower(providerID)
+		if normalizedBuiltIn == "deezer" {
+			continue
+		}
 		if isBuiltInDownloadProvider(normalizedBuiltIn) {
 			providerID = normalizedBuiltIn
 		}
@@ -1036,6 +1134,10 @@ func searchBuiltInMetadataTracks(providerID, query string, limit int) ([]ExtTrac
 }
 
 func (m *extensionManager) SearchTracksWithMetadataProviders(query string, limit int, includeExtensions bool) ([]ExtTrackMetadata, error) {
+	return m.SearchTracksWithMetadataProvidersForItemID(query, limit, includeExtensions, "")
+}
+
+func (m *extensionManager) SearchTracksWithMetadataProvidersForItemID(query string, limit int, includeExtensions bool, itemID string) ([]ExtTrackMetadata, error) {
 	priority := GetMetadataProviderPriority()
 	if limit <= 0 {
 		limit = 20
@@ -1073,13 +1175,20 @@ func (m *extensionManager) SearchTracksWithMetadataProviders(query string, limit
 	tracks := make([]ExtTrackMetadata, 0, limit)
 	seenTracks := make(map[string]struct{})
 	for _, providerID := range orderedProviderIDs {
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
+
 		var (
 			providerTracks []ExtTrackMetadata
 			err            error
 		)
 
 		if isBuiltInProvider(providerID) {
-			providerTracks, err = searchBuiltInMetadataTracksFunc(providerID, query, limit)
+			providerTracks, err = searchBuiltInMetadataTracksForItemID(providerID, query, limit, itemID)
+			if isDownloadCancelled(itemID) {
+				return nil, ErrDownloadCancelled
+			}
 		} else {
 			if !includeExtensions {
 				continue
@@ -1089,13 +1198,16 @@ func (m *extensionManager) SearchTracksWithMetadataProviders(query string, limit
 				continue
 			}
 			var result *ExtSearchResult
-			result, err = provider.SearchTracks(query, limit)
+			result, err = provider.SearchTracksForItemID(query, limit, itemID)
 			if result != nil {
 				providerTracks = result.Tracks
 			}
 		}
 
 		if err != nil {
+			if errors.Is(err, ErrDownloadCancelled) {
+				return nil, ErrDownloadCancelled
+			}
 			GoLog("[MetadataSearch] Search error from %s: %v\n", providerID, err)
 			continue
 		}
@@ -1124,6 +1236,10 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 	extManager := getExtensionManager()
 	strictMode := !req.UseFallback
 	selectedProvider := strings.TrimSpace(req.Service)
+
+	if isDownloadCancelled(req.ItemID) {
+		return nil, ErrDownloadCancelled
+	}
 
 	if strictMode {
 		if selectedProvider == "" {
@@ -1193,7 +1309,10 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 				Composer:    req.Composer,
 			}
 
-			enrichedTrack, err := provider.EnrichTrack(trackMeta)
+			enrichedTrack, err := provider.EnrichTrackForItemID(trackMeta, req.ItemID)
+			if errors.Is(err, ErrDownloadCancelled) {
+				return nil, ErrDownloadCancelled
+			}
 			if err == nil && enrichedTrack != nil {
 				if enrichedTrack.ISRC != "" && enrichedTrack.ISRC != req.ISRC {
 					GoLog("[DownloadWithExtensionFallback] ISRC enriched: %s -> %s\n", req.ISRC, enrichedTrack.ISRC)
@@ -1282,7 +1401,10 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 		searchQuery := req.TrackName + " " + req.ArtistName
 		GoLog("[DownloadWithExtensionFallback] Metadata incomplete, searching providers for: %s\n", searchQuery)
 
-		tracks, searchErr := extManager.SearchTracksWithMetadataProviders(searchQuery, 5, true)
+		tracks, searchErr := extManager.SearchTracksWithMetadataProvidersForItemID(searchQuery, 5, true, req.ItemID)
+		if errors.Is(searchErr, ErrDownloadCancelled) {
+			return nil, ErrDownloadCancelled
+		}
 		if searchErr == nil && len(tracks) > 0 {
 			track := tracks[0]
 			GoLog("[DownloadWithExtensionFallback] Metadata match (%s): %s - %s (album: %s, date: %s, isrc: %s)\n",
@@ -1340,6 +1462,10 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 	if req.Source != "" &&
 		!isBuiltInProvider(strings.ToLower(req.Source)) &&
 		selectedProvider == req.Source {
+		if isDownloadCancelled(req.ItemID) {
+			return nil, ErrDownloadCancelled
+		}
+
 		GoLog("[DownloadWithExtensionFallback] Track source is extension '%s' matching selected provider, trying it first\n", req.Source)
 
 		ext, err := extManager.GetExtension(req.Source)
@@ -1524,6 +1650,10 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 	}
 
 	for _, providerID := range priority {
+		if isDownloadCancelled(req.ItemID) {
+			return nil, ErrDownloadCancelled
+		}
+
 		providerID = strings.TrimSpace(providerID)
 		if providerID == "" {
 			continue
@@ -1551,6 +1681,9 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 				req.ISRC != "" {
 				GoLog("[DownloadWithExtensionFallback] Enriching extra metadata from ISRC: %s\n", req.ISRC)
 				enrichExtraMetadataByISRC("DownloadWithExtensionFallback", req.ISRC, &req.Genre, &req.Label, &req.Copyright)
+				if isDownloadCancelled(req.ItemID) {
+					return nil, ErrDownloadCancelled
+				}
 			}
 
 			origQuality := req.Quality
@@ -1598,7 +1731,10 @@ func DownloadWithExtensionFallback(req DownloadRequest) (*DownloadResponse, erro
 
 			provider := newExtensionProviderWrapper(ext)
 
-			availability, err := provider.CheckAvailability(req.ISRC, req.TrackName, req.ArtistName, req.SpotifyID, req.DeezerID)
+			availability, err := provider.CheckAvailabilityForItemID(req.ISRC, req.TrackName, req.ArtistName, req.SpotifyID, req.DeezerID, req.ItemID)
+			if errors.Is(err, ErrDownloadCancelled) {
+				return nil, ErrDownloadCancelled
+			}
 			if err != nil || !availability.Available {
 				GoLog("[DownloadWithExtensionFallback] %s: not available\n", providerID)
 				if err != nil {
@@ -1931,6 +2067,10 @@ func canEmbedGenreLabel(filePath string) bool {
 }
 
 func (p *extensionProviderWrapper) CustomSearch(query string, options map[string]interface{}) ([]ExtTrackMetadata, error) {
+	return p.CustomSearchForItemID(query, options, "")
+}
+
+func (p *extensionProviderWrapper) CustomSearchForItemID(query string, options map[string]interface{}, itemID string) ([]ExtTrackMetadata, error) {
 	if !p.extension.Manifest.HasCustomSearch() {
 		return nil, fmt.Errorf("extension '%s' does not support custom search", p.extension.ID)
 	}
@@ -1942,6 +2082,17 @@ func (p *extensionProviderWrapper) CustomSearch(query string, options map[string
 		return nil, err
 	}
 	defer p.extension.VMMu.Unlock()
+	if itemID != "" {
+		if p.extension.runtime != nil {
+			p.extension.runtime.setActiveDownloadItemID(itemID)
+			defer p.extension.runtime.clearActiveDownloadItemID()
+		}
+		initDownloadCancel(itemID)
+		defer clearDownloadCancel(itemID)
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
+	}
 
 	if options == nil {
 		options = map[string]interface{}{}
@@ -1970,10 +2121,16 @@ func (p *extensionProviderWrapper) CustomSearch(query string, options map[string
 
 	result, err := RunWithTimeoutAndRecover(p.vm, script, DefaultJSTimeout)
 	if err != nil {
+		if isDownloadCancelled(itemID) {
+			return nil, ErrDownloadCancelled
+		}
 		if IsTimeoutError(err) {
 			return nil, fmt.Errorf("customSearch timeout: extension took too long to respond")
 		}
 		return nil, fmt.Errorf("customSearch failed: %w", err)
+	}
+	if isDownloadCancelled(itemID) {
+		return nil, ErrDownloadCancelled
 	}
 
 	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {

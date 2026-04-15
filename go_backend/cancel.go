@@ -13,6 +13,7 @@ type cancelEntry struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	canceled bool
+	refs     int
 }
 
 var (
@@ -37,6 +38,7 @@ func initDownloadCancel(itemID string) context.Context {
 				entry.cancel()
 			}
 		}
+		entry.refs++
 		return entry.ctx
 	}
 
@@ -45,6 +47,7 @@ func initDownloadCancel(itemID string) context.Context {
 		ctx:      ctx,
 		cancel:   cancel,
 		canceled: false,
+		refs:     1,
 	}
 	return ctx
 }
@@ -87,6 +90,11 @@ func clearDownloadCancel(itemID string) {
 	}
 
 	cancelMu.Lock()
-	delete(cancelMap, itemID)
+	if entry, ok := cancelMap[itemID]; ok {
+		entry.refs--
+		if entry.refs <= 0 {
+			delete(cancelMap, itemID)
+		}
+	}
 	cancelMu.Unlock()
 }

@@ -5571,6 +5571,18 @@ abstract class AppLocalizations {
   /// **'Automatically select the best available'**
   String get extensionsHomeFeedAutoSubtitle;
 
+  /// Extensions page - home feed provider option: off
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get extensionsHomeFeedOff;
+
+  /// Extensions page - subtitle for off home feed option
+  ///
+  /// In en, this message translates to:
+  /// **'Do not show the home feed on the main screen'**
+  String get extensionsHomeFeedOffSubtitle;
+
   /// Extensions page - subtitle for a specific extension home feed option
   ///
   /// In en, this message translates to:

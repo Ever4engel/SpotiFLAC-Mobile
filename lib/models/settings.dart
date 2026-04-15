@@ -5,6 +5,8 @@ part 'settings.g.dart';
 
 @JsonSerializable()
 class AppSettings {
+  static const String homeFeedProviderOff = '__off__';
+
   final String defaultService;
   final String audioQuality;
   final String filenameFormat;

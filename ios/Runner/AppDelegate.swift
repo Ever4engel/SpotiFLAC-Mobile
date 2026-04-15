@@ -507,7 +507,8 @@ import Gobackend  // Import Go framework
         case "searchDeezerByISRC":
             let args = call.arguments as! [String: Any]
             let isrc = args["isrc"] as! String
-            let response = GobackendSearchDeezerByISRC(isrc, &error)
+            let itemId = args["item_id"] as? String ?? ""
+            let response = GobackendSearchDeezerByISRCForItemID(isrc, itemId, &error)
             if let error = error { throw error }
             return response
 

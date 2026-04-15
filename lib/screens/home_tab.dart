@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
+import 'package:spotiflac_android/models/settings.dart';
 import 'package:spotiflac_android/models/track.dart';
 import 'package:spotiflac_android/providers/track_provider.dart';
 import 'package:spotiflac_android/providers/download_queue_provider.dart';
@@ -376,6 +377,12 @@ class _HomeTabState extends ConsumerState<HomeTab>
   }
 
   void _fetchExploreIfNeeded() {
+    if (ref.read(settingsProvider).homeFeedProvider ==
+        AppSettings.homeFeedProviderOff) {
+      ref.read(exploreProvider.notifier).clear();
+      return;
+    }
+
     final extState = ref.read(extensionProvider);
     final exploreState = ref.read(exploreProvider);
     final hasHomeFeedExtension = extState.extensions.any(
@@ -1259,6 +1266,11 @@ class _HomeTabState extends ConsumerState<HomeTab>
         (s) => s.extensions.any((e) => e.enabled && e.hasHomeFeed),
       ),
     );
+    final homeFeedDisabled = ref.watch(
+      settingsProvider.select(
+        (s) => s.homeFeedProvider == AppSettings.homeFeedProviderOff,
+      ),
+    );
 
     final colorScheme = Theme.of(context).colorScheme;
     final searchText = _urlController.text.trim();
@@ -1285,6 +1297,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
         !hasActualResults &&
         !isLoading &&
         !showRecentAccess &&
+        !homeFeedDisabled &&
         (hasHomeFeedExtension || hasExploreContent) &&
         hasExploreContent;
 
@@ -1536,6 +1549,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
                 ),
 
               if (hasHomeFeedExtension &&
+                  !homeFeedDisabled &&
                   !hasActualResults &&
                   !isLoading &&
                   exploreLoading)
@@ -4687,7 +4701,7 @@ class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen> {
       name: (data['name'] ?? '').toString(),
       artistName: (data['artists'] ?? data['artist'] ?? '').toString(),
       albumName: (data['album_name'] ?? widget.albumName).toString(),
-      albumArtist: (data['album_artist'] ?? _artistName)?.toString(),
+      albumArtist: normalizeOptionalString(data['album_artist']?.toString()),
       artistId:
           (data['artist_id'] ?? data['artistId'])?.toString() ?? _artistId,
       albumId: data['album_id']?.toString() ?? widget.albumId,

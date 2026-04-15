@@ -2674,7 +2674,7 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
         'track_name': trackName,
         'artist_name': artistName,
         'album_name': albumName,
-        'album_artist': albumArtist ?? artistName,
+        'album_artist': albumArtist ?? '',
         'track_number': trackNumber ?? 0,
         'total_tracks': totalTracks ?? 0,
         'disc_number': discNumber ?? 0,

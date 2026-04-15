@@ -4255,6 +4255,14 @@
   "@extensionsHomeFeedAutoSubtitle": {
     "description": "Extensions page - subtitle for auto home feed option"
   },
+  "extensionsHomeFeedOff": "Off",
+  "@extensionsHomeFeedOff": {
+    "description": "Extensions page - home feed provider option: off"
+  },
+  "extensionsHomeFeedOffSubtitle": "Do not show the home feed on the main screen",
+  "@extensionsHomeFeedOffSubtitle": {
+    "description": "Extensions page - subtitle for off home feed option"
+  },
   "extensionsHomeFeedUse": "Use {extensionName} home feed",
   "@extensionsHomeFeedUse": {
     "description": "Extensions page - subtitle for a specific extension home feed option",

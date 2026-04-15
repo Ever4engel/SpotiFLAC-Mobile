@@ -2208,11 +2208,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     return artist;
   }
 
-  String _resolveAlbumArtistForMetadata(Track track, AppSettings settings) {
-    var albumArtist =
-        normalizeOptionalString(track.albumArtist) ?? track.artistName;
+  String? _resolveAlbumArtistForMetadata(Track track, AppSettings settings) {
+    var albumArtist = normalizeOptionalString(track.albumArtist);
     if (settings.filterContributingArtistsInAlbumArtist) {
-      albumArtist = _extractPrimaryArtist(albumArtist);
+      albumArtist = albumArtist == null
+          ? null
+          : normalizeOptionalString(_extractPrimaryArtist(albumArtist));
     }
     return albumArtist;
   }
@@ -2488,6 +2489,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   Future<String?> _searchDeezerTrackIdByIsrc(
     String? isrc, {
     required String lookupContext,
+    String? itemId,
   }) async {
     final normalizedIsrc = normalizeOptionalString(isrc);
     if (normalizedIsrc == null || !_isValidISRC(normalizedIsrc)) {
@@ -2498,6 +2500,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       _log.d('No Deezer ID, searching by $lookupContext: $normalizedIsrc');
       final deezerResult = await PlatformBridge.searchDeezerByISRC(
         normalizedIsrc,
+        itemId: itemId,
       );
       if (deezerResult['success'] == true && deezerResult['track_id'] != null) {
         final deezerTrackId = deezerResult['track_id'].toString();
@@ -2564,6 +2567,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
   Future<_DeezerLookupPreparation> _resolveProviderTrackForDeezerLookup(
     Track track,
+    String itemId,
   ) async {
     try {
       final colonIdx = track.id.indexOf(':');
@@ -2608,6 +2612,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       final deezerTrackId = await _searchDeezerTrackIdByIsrc(
         resolvedIsrc,
         lookupContext: '$provider ISRC',
+        itemId: itemId,
       );
 
       return _DeezerLookupPreparation(
@@ -3347,7 +3352,6 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         'title': track.name,
         'artist': track.artistName,
         'album': track.albumName,
-        'album_artist': resolvedAlbumArtist,
         'track_number': track.trackNumber ?? 0,
         'disc_number': track.discNumber ?? 0,
         'isrc': track.isrc ?? '',
@@ -3355,6 +3359,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         'duration_ms': track.duration * 1000,
         'cover_url': track.coverUrl ?? '',
       };
+      if (resolvedAlbumArtist != null) {
+        metadata['album_artist'] = resolvedAlbumArtist;
+      }
 
       final result = await PlatformBridge.runPostProcessingV2(
         filePath,
@@ -3706,7 +3713,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   Track _buildTrackForMetadataEmbedding(
     Track baseTrack,
     Map<String, dynamic> backendResult,
-    String resolvedAlbumArtist,
+    String? resolvedAlbumArtist,
   ) {
     final backendTrackNum = _parsePositiveInt(backendResult['track_number']);
     final backendDiscNum = _parsePositiveInt(backendResult['disc_number']);
@@ -3849,7 +3856,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
 
       final albumArtist = _resolveAlbumArtistForMetadata(track, settings);
-      metadata['ALBUMARTIST'] = albumArtist;
+      if (albumArtist != null) {
+        metadata['ALBUMARTIST'] = albumArtist;
+      }
 
       if (track.trackNumber != null && track.trackNumber! > 0) {
         final trackTag = formatIndexTag(track.trackNumber!, track.totalTracks);
@@ -4017,7 +4026,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             await PlatformBridge.rewriteSplitArtistTags(
               filePath,
               track.artistName,
-              albumArtist,
+              albumArtist ?? '',
             );
             _log.d('Split artist tags rewritten via native FLAC writer');
           } catch (e) {
@@ -4607,6 +4616,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         deezerTrackId = await _searchDeezerTrackIdByIsrc(
           trackToDownload.isrc,
           lookupContext: 'ISRC',
+          itemId: item.id,
         );
 
         if (shouldAbortWork('during Deezer ISRC lookup')) {
@@ -4624,6 +4634,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
               trackToDownload.id.startsWith('qobuz:'))) {
         final providerLookup = await _resolveProviderTrackForDeezerLookup(
           trackToDownload,
+          item.id,
         );
         trackToDownload = providerLookup.track;
         deezerTrackId ??= providerLookup.deezerTrackId;
@@ -4746,7 +4757,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           trackName: trackToDownload.name,
           artistName: trackToDownload.artistName,
           albumName: trackToDownload.albumName,
-          albumArtist: resolvedAlbumArtist,
+          albumArtist: resolvedAlbumArtist ?? '',
           coverUrl: metadataEmbeddingEnabled
               ? (trackToDownload.coverUrl ?? '')
               : '',
@@ -5889,10 +5900,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
           _log.d('Saving to history - coverUrl: ${trackToDownload.coverUrl}');
 
-          final historyAlbumArtist =
-              resolvedAlbumArtist != trackToDownload.artistName
-              ? resolvedAlbumArtist
-              : null;
+          final historyAlbumArtist = normalizeOptionalString(
+            trackToDownload.albumArtist,
+          );
 
           final isLossyOutput =
               lowerFilePath.endsWith('.mp3') ||

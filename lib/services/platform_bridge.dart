@@ -609,9 +609,13 @@ class PlatformBridge {
     return jsonDecode(result as String) as Map<String, dynamic>;
   }
 
-  static Future<Map<String, dynamic>> searchDeezerByISRC(String isrc) async {
+  static Future<Map<String, dynamic>> searchDeezerByISRC(
+    String isrc, {
+    String? itemId,
+  }) async {
     final result = await _channel.invokeMethod('searchDeezerByISRC', {
       'isrc': isrc,
+      'item_id': itemId ?? '',
     });
     return jsonDecode(result as String) as Map<String, dynamic>;
   }

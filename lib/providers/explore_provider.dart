@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spotiflac_android/models/settings.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/logger.dart';
 import 'package:spotiflac_android/providers/extension_provider.dart';
@@ -221,6 +222,12 @@ class ExploreNotifier extends Notifier<ExploreState> {
 
   Future<void> _restoreFromCache() async {
     try {
+      if (ref.read(settingsProvider).homeFeedProvider ==
+          AppSettings.homeFeedProviderOff) {
+        _log.d('Home feed disabled, skipping cache restore');
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final cached = prefs.getString(_cacheKey);
       final cachedTs = prefs.getInt(_cacheTsKey);
@@ -270,6 +277,13 @@ class ExploreNotifier extends Notifier<ExploreState> {
 
   Future<void> fetchHomeFeed({bool forceRefresh = false}) async {
     _log.i('fetchHomeFeed called, forceRefresh=$forceRefresh');
+
+    if (ref.read(settingsProvider).homeFeedProvider ==
+        AppSettings.homeFeedProviderOff) {
+      _log.d('Home feed disabled by user setting');
+      state = const ExploreState();
+      return;
+    }
 
     if (!forceRefresh &&
         state.hasContent &&

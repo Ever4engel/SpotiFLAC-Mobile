@@ -50,6 +50,22 @@ type musicBrainzRecordingResponse struct {
 	} `json:"recordings"`
 }
 
+type musicBrainzArtistCredit struct {
+	Name       string `json:"name"`
+	JoinPhrase string `json:"joinphrase"`
+}
+
+type musicBrainzRelease struct {
+	Title        string                    `json:"title"`
+	ArtistCredit []musicBrainzArtistCredit `json:"artist-credit"`
+}
+
+type musicBrainzAlbumArtistResponse struct {
+	Recordings []struct {
+		Releases []musicBrainzRelease `json:"releases"`
+	} `json:"recordings"`
+}
+
 func formatMusicBrainzGenre(tags []musicBrainzTag) string {
 	if len(tags) == 0 {
 		return ""
@@ -80,6 +96,105 @@ func formatMusicBrainzGenre(tags []musicBrainzTag) string {
 	}
 
 	return bestTag
+}
+
+func formatMusicBrainzArtistCredit(credits []musicBrainzArtistCredit) string {
+	var builder strings.Builder
+	for _, credit := range credits {
+		name := strings.TrimSpace(credit.Name)
+		if name == "" {
+			continue
+		}
+		builder.WriteString(name)
+		builder.WriteString(credit.JoinPhrase)
+	}
+	return strings.TrimSpace(builder.String())
+}
+
+func selectMusicBrainzAlbumArtist(releases []musicBrainzRelease, albumName string) string {
+	if len(releases) == 0 {
+		return ""
+	}
+
+	normalizedAlbum := strings.ToLower(strings.TrimSpace(albumName))
+	if normalizedAlbum != "" {
+		for _, release := range releases {
+			if strings.ToLower(strings.TrimSpace(release.Title)) != normalizedAlbum {
+				continue
+			}
+			if albumArtist := formatMusicBrainzArtistCredit(release.ArtistCredit); albumArtist != "" {
+				return albumArtist
+			}
+		}
+	}
+
+	for _, release := range releases {
+		if albumArtist := formatMusicBrainzArtistCredit(release.ArtistCredit); albumArtist != "" {
+			return albumArtist
+		}
+	}
+
+	return ""
+}
+
+func FetchMusicBrainzAlbumArtistByISRC(isrc string, albumName string) (string, error) {
+	normalizedISRC := strings.ToUpper(strings.TrimSpace(isrc))
+	if normalizedISRC == "" {
+		return "", fmt.Errorf("no ISRC provided")
+	}
+
+	client := NewMetadataHTTPClient(10 * time.Second)
+	query := fmt.Sprintf("isrc:%s", normalizedISRC)
+	reqURL := fmt.Sprintf(
+		"%s/recording?query=%s&fmt=json&inc=releases+artist-credits",
+		musicBrainzAPIBase,
+		url.QueryEscape(query),
+	)
+
+	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", getRandomUserAgent())
+
+	var resp *http.Response
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		resp, lastErr = client.Do(req)
+		if lastErr == nil && resp.StatusCode == http.StatusOK {
+			break
+		}
+		if resp != nil {
+			resp.Body.Close()
+		}
+		if attempt < 2 {
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	if lastErr != nil {
+		return "", lastErr
+	}
+	if resp == nil {
+		return "", fmt.Errorf("MusicBrainz request failed without response")
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return "", fmt.Errorf("MusicBrainz API returned status: %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+
+	var payload musicBrainzAlbumArtistResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return "", err
+	}
+	for _, recording := range payload.Recordings {
+		if albumArtist := selectMusicBrainzAlbumArtist(recording.Releases, albumName); albumArtist != "" {
+			return albumArtist, nil
+		}
+	}
+
+	return "", fmt.Errorf("no MusicBrainz album artist found for ISRC: %s", normalizedISRC)
 }
 
 func FetchMusicBrainzGenreByISRC(isrc string) (string, error) {
@@ -243,6 +358,8 @@ var fetchDeezerExtendedMetadataByISRC = func(ctx context.Context, isrc string) (
 }
 
 var fetchMusicBrainzGenreByISRC = FetchMusicBrainzGenreByISRC
+
+var fetchMusicBrainzAlbumArtistByISRC = FetchMusicBrainzAlbumArtistByISRC
 
 type reEnrichRequest struct {
 	FilePath      string   `json:"file_path"`
@@ -870,17 +987,29 @@ func enrichRequestExtendedMetadata(req *DownloadRequest) {
 		return
 	}
 
-	if req.ISRC == "" || (req.Genre != "" && req.Label != "" && req.Copyright != "") {
+	if req.ISRC == "" {
 		return
 	}
 
-	enrichExtraMetadataByISRC(
-		"DownloadWithFallback",
-		req.ISRC,
-		&req.Genre,
-		&req.Label,
-		&req.Copyright,
-	)
+	if strings.TrimSpace(req.AlbumArtist) == "" {
+		albumArtist, err := fetchMusicBrainzAlbumArtistByISRC(req.ISRC, req.AlbumName)
+		if err != nil {
+			GoLog("[DownloadWithFallback] Failed to get album artist from MusicBrainz: %v\n", err)
+		} else if strings.TrimSpace(albumArtist) != "" {
+			req.AlbumArtist = strings.TrimSpace(albumArtist)
+			GoLog("[DownloadWithFallback] Album artist fallback from MusicBrainz: %s\n", req.AlbumArtist)
+		}
+	}
+
+	if req.Genre == "" || req.Label == "" || req.Copyright == "" {
+		enrichExtraMetadataByISRC(
+			"DownloadWithFallback",
+			req.ISRC,
+			&req.Genre,
+			&req.Label,
+			&req.Copyright,
+		)
+	}
 }
 
 func applySongLinkRegionFromRequest(req *DownloadRequest) {
@@ -897,6 +1026,13 @@ func DownloadTrack(requestJSON string) (string, error) {
 	}
 	applySongLinkRegionFromRequest(&req)
 	defer closeOwnedOutputFD(req.OutputFD)
+	if req.ItemID != "" {
+		initDownloadCancel(req.ItemID)
+		defer clearDownloadCancel(req.ItemID)
+		if isDownloadCancelled(req.ItemID) {
+			return errorResponse("Download cancelled")
+		}
+	}
 
 	req.TrackName = strings.TrimSpace(req.TrackName)
 	req.ArtistName = strings.TrimSpace(req.ArtistName)
@@ -911,6 +1047,9 @@ func DownloadTrack(requestJSON string) (string, error) {
 	}
 
 	enrichRequestExtendedMetadata(&req)
+	if isDownloadCancelled(req.ItemID) {
+		return errorResponse("Download cancelled")
+	}
 
 	var result DownloadResult
 	var err error
@@ -1040,6 +1179,13 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 	}
 	applySongLinkRegionFromRequest(&req)
 	defer closeOwnedOutputFD(req.OutputFD)
+	if req.ItemID != "" {
+		initDownloadCancel(req.ItemID)
+		defer clearDownloadCancel(req.ItemID)
+		if isDownloadCancelled(req.ItemID) {
+			return errorResponse("Download cancelled")
+		}
+	}
 
 	req.TrackName = strings.TrimSpace(req.TrackName)
 	req.ArtistName = strings.TrimSpace(req.ArtistName)
@@ -1054,6 +1200,9 @@ func DownloadWithFallback(requestJSON string) (string, error) {
 	}
 
 	enrichRequestExtendedMetadata(&req)
+	if isDownloadCancelled(req.ItemID) {
+		return errorResponse("Download cancelled")
+	}
 
 	allServices := []string{"tidal", "qobuz"}
 	preferredService := req.Service
@@ -2131,13 +2280,32 @@ func GetDeezerExtendedMetadata(trackID string) (string, error) {
 }
 
 func SearchDeezerByISRC(isrc string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	return SearchDeezerByISRCForItemID(isrc, "")
+}
+
+func SearchDeezerByISRCForItemID(isrc string, itemID string) (string, error) {
+	parentCtx := context.Background()
+	if itemID != "" {
+		parentCtx = initDownloadCancel(itemID)
+		defer clearDownloadCancel(itemID)
+		if isDownloadCancelled(itemID) {
+			return "", ErrDownloadCancelled
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
 
 	client := GetDeezerClient()
 	track, err := client.SearchByISRC(ctx, isrc)
 	if err != nil {
+		if isDownloadCancelled(itemID) {
+			return "", ErrDownloadCancelled
+		}
 		return "", err
+	}
+	if isDownloadCancelled(itemID) {
+		return "", ErrDownloadCancelled
 	}
 
 	result := buildDeezerISRCSearchResult(track)
@@ -2513,6 +2681,17 @@ func ReEnrichFile(requestJSON string) (string, error) {
 			}
 		} else {
 			GoLog("[ReEnrich] Skipping provider search: no usable title/artist/album query\n")
+		}
+
+		if req.shouldUpdateField("basic_tags") && req.AlbumArtist == "" && req.ISRC != "" {
+			albumArtist, err := fetchMusicBrainzAlbumArtistByISRC(req.ISRC, req.AlbumName)
+			if err != nil {
+				GoLog("[ReEnrich] Failed to get album artist from MusicBrainz: %v\n", err)
+			} else if strings.TrimSpace(albumArtist) != "" {
+				req.AlbumArtist = strings.TrimSpace(albumArtist)
+				GoLog("[ReEnrich] Album artist fallback from MusicBrainz: %s\n", req.AlbumArtist)
+				found = true
+			}
 		}
 
 		// Try to enrich extra metadata from ISRC if not already set.
@@ -2954,6 +3133,13 @@ func DownloadWithExtensionsJSON(requestJSON string) (string, error) {
 	}
 	applySongLinkRegionFromRequest(&req)
 	defer closeOwnedOutputFD(req.OutputFD)
+	if req.ItemID != "" {
+		initDownloadCancel(req.ItemID)
+		defer clearDownloadCancel(req.ItemID)
+		if isDownloadCancelled(req.ItemID) {
+			return "", ErrDownloadCancelled
+		}
+	}
 
 	req.TrackName = strings.TrimSpace(req.TrackName)
 	req.ArtistName = strings.TrimSpace(req.ArtistName)
@@ -2964,6 +3150,11 @@ func DownloadWithExtensionsJSON(requestJSON string) (string, error) {
 	req.OutputExt = strings.TrimSpace(req.OutputExt)
 	if req.OutputPath == "" && req.OutputFD <= 0 && req.OutputDir != "" {
 		AddAllowedDownloadDir(req.OutputDir)
+	}
+
+	enrichRequestExtendedMetadata(&req)
+	if isDownloadCancelled(req.ItemID) {
+		return "", ErrDownloadCancelled
 	}
 
 	result, err := DownloadWithExtensionFallback(req)

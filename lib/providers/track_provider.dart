@@ -851,6 +851,10 @@ class TrackNotifier extends Notifier<TrackState> {
         albumType: track.albumType,
         totalTracks: track.totalTracks,
         source: track.source,
+        composer: track.composer,
+        itemType: track.itemType,
+        audioQuality: track.audioQuality,
+        audioModes: track.audioModes,
         availability: ServiceAvailability(
           tidal: availability['tidal'] as bool? ?? false,
           qobuz: availability['qobuz'] as bool? ?? false,
@@ -932,6 +936,8 @@ class TrackNotifier extends Notifier<TrackState> {
       albumType: normalizeOptionalString(data['album_type']?.toString()),
       totalTracks: data['total_tracks'] as int?,
       composer: data['composer']?.toString(),
+      audioQuality: data['audio_quality']?.toString(),
+      audioModes: data['audio_modes']?.toString(),
     );
   }
 
@@ -969,6 +975,8 @@ class TrackNotifier extends Notifier<TrackState> {
       albumType: normalizeOptionalString(data['album_type']?.toString()),
       composer: data['composer']?.toString(),
       itemType: itemType,
+      audioQuality: data['audio_quality']?.toString(),
+      audioModes: data['audio_modes']?.toString(),
     );
   }
 

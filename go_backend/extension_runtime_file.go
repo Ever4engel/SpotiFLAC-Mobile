@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dop251/goja"
 )
@@ -134,6 +135,8 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 
 	var onProgress goja.Callable
 	var headers map[string]string
+	var chunkedDownload bool
+	var chunkSize int64
 	if len(call.Arguments) > 2 && !goja.IsUndefined(call.Arguments[2]) && !goja.IsNull(call.Arguments[2]) {
 		optionsObj := call.Arguments[2].Export()
 		if opts, ok := optionsObj.(map[string]interface{}); ok {
@@ -148,7 +151,28 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 					onProgress = callable
 				}
 			}
+			if chunked, ok := opts["chunked"]; ok {
+				switch v := chunked.(type) {
+				case bool:
+					chunkedDownload = v
+				case int64:
+					if v > 0 {
+						chunkedDownload = true
+						chunkSize = v
+					}
+				case float64:
+					if v > 0 {
+						chunkedDownload = true
+						chunkSize = int64(v)
+					}
+				}
+			}
 		}
+	}
+
+	// Default chunk size: 1MB (YouTube CDN max without poToken)
+	if chunkedDownload && chunkSize <= 0 {
+		chunkSize = 1024 * 1024
 	}
 
 	dir := filepath.Dir(fullPath)
@@ -157,6 +181,20 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 			"success": false,
 			"error":   fmt.Sprintf("failed to create directory: %v", err),
 		})
+	}
+
+	client := r.downloadClient
+	if client == nil {
+		client = r.httpClient
+	}
+
+	ua := appUserAgent()
+	if h, ok := headers["User-Agent"]; ok && h != "" {
+		ua = h
+	}
+
+	if chunkedDownload {
+		return r.fileDownloadChunked(client, urlStr, fullPath, headers, ua, chunkSize, onProgress)
 	}
 
 	req, err := http.NewRequest("GET", urlStr, nil)
@@ -172,12 +210,7 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		req.Header.Set(k, v)
 	}
 	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", "SpotiFLAC-Extension/1.0")
-	}
-
-	client := r.downloadClient
-	if client == nil {
-		client = r.httpClient
+		req.Header.Set("User-Agent", appUserAgent())
 	}
 
 	resp, err := client.Do(req)
@@ -189,7 +222,7 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return r.vm.ToValue(map[string]interface{}{
 			"success": false,
 			"error":   fmt.Sprintf("HTTP error: %d", resp.StatusCode),
@@ -274,6 +307,231 @@ func (r *extensionRuntime) fileDownload(call goja.FunctionCall) goja.Value {
 		"success": true,
 		"path":    fullPath,
 		"size":    written,
+	})
+}
+
+// fileDownloadChunked downloads a URL using sequential Range requests.
+// This is needed for servers (like YouTube's googlevideo CDN) that reject
+// non-ranged or large-range requests with 403 and require small chunk downloads.
+func (r *extensionRuntime) fileDownloadChunked(client *http.Client, urlStr, fullPath string, headers map[string]string, ua string, chunkSize int64, onProgress goja.Callable) goja.Value {
+	// First, get the total content length with a small probe request
+	probeReq, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		return r.vm.ToValue(map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("chunked: probe request error: %v", err),
+		})
+	}
+	probeReq = r.bindDownloadCancelContext(probeReq)
+	probeReq.Header.Set("User-Agent", ua)
+	for k, v := range headers {
+		if k != "Range" { // Don't copy any existing Range header
+			probeReq.Header.Set(k, v)
+		}
+	}
+	probeReq.Header.Set("Range", "bytes=0-1")
+
+	probeResp, err := client.Do(probeReq)
+	if err != nil {
+		return r.vm.ToValue(map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("chunked: probe error: %v", err),
+		})
+	}
+	io.Copy(io.Discard, probeResp.Body)
+	probeResp.Body.Close()
+
+	if probeResp.StatusCode != 206 && probeResp.StatusCode != 200 {
+		return r.vm.ToValue(map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("chunked: probe HTTP %d", probeResp.StatusCode),
+		})
+	}
+
+	// Parse Content-Range to get total size: "bytes 0-1/TOTAL"
+	var totalSize int64
+	contentRange := probeResp.Header.Get("Content-Range")
+	if contentRange != "" {
+		// Format: "bytes 0-1/12345"
+		if idx := strings.LastIndex(contentRange, "/"); idx >= 0 {
+			sizeStr := contentRange[idx+1:]
+			if sizeStr != "*" {
+				fmt.Sscanf(sizeStr, "%d", &totalSize)
+			}
+		}
+	}
+
+	if totalSize <= 0 {
+		// Fallback: try Content-Length from a HEAD-like approach
+		// If we can't determine size, download with unknown size
+		GoLog("[Extension:%s] Chunked download: unknown total size, will download until server says done\n", r.extensionID)
+	} else {
+		GoLog("[Extension:%s] Chunked download: total size %d bytes, chunk size %d\n", r.extensionID, totalSize, chunkSize)
+	}
+
+	out, err := os.Create(fullPath)
+	if err != nil {
+		return r.vm.ToValue(map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("failed to create file: %v", err),
+		})
+	}
+	defer out.Close()
+
+	activeItemID := r.getActiveDownloadItemID()
+	if activeItemID != "" {
+		SetItemDownloading(activeItemID)
+	}
+
+	shouldTrackItemBytes := activeItemID != "" && onProgress == nil
+	if shouldTrackItemBytes && totalSize > 0 {
+		SetItemBytesTotal(activeItemID, totalSize)
+	}
+
+	var progressWriter interface{ Write([]byte) (int, error) } = out
+	if shouldTrackItemBytes {
+		progressWriter = NewItemProgressWriter(out, activeItemID)
+	}
+
+	var totalWritten int64
+	buf := make([]byte, 32*1024)
+	maxRetries := 3
+
+	for offset := int64(0); totalSize <= 0 || offset < totalSize; {
+		end := offset + chunkSize - 1
+		if totalSize > 0 && end >= totalSize {
+			end = totalSize - 1
+		}
+
+		var chunkResp *http.Response
+		var chunkErr error
+
+		for retry := 0; retry < maxRetries; retry++ {
+			chunkReq, err := http.NewRequest("GET", urlStr, nil)
+			if err != nil {
+				return r.vm.ToValue(map[string]interface{}{
+					"success": false,
+					"error":   fmt.Sprintf("chunked: request error at offset %d: %v", offset, err),
+				})
+			}
+			chunkReq = r.bindDownloadCancelContext(chunkReq)
+			chunkReq.Header.Set("User-Agent", ua)
+			for k, v := range headers {
+				if k != "Range" {
+					chunkReq.Header.Set(k, v)
+				}
+			}
+			chunkReq.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", offset, end))
+
+			chunkResp, chunkErr = client.Do(chunkReq)
+			if chunkErr != nil {
+				if retry < maxRetries-1 {
+					time.Sleep(time.Duration(retry+1) * time.Second)
+					continue
+				}
+				return r.vm.ToValue(map[string]interface{}{
+					"success": false,
+					"error":   fmt.Sprintf("chunked: error at offset %d after %d retries: %v", offset, maxRetries, chunkErr),
+				})
+			}
+
+			if chunkResp.StatusCode == 206 || chunkResp.StatusCode == 200 {
+				break // Success
+			}
+
+			// Non-success status
+			io.Copy(io.Discard, chunkResp.Body)
+			chunkResp.Body.Close()
+
+			if chunkResp.StatusCode == 403 || chunkResp.StatusCode == 429 {
+				if retry < maxRetries-1 {
+					time.Sleep(time.Duration(retry+1) * 2 * time.Second)
+					continue
+				}
+			}
+
+			return r.vm.ToValue(map[string]interface{}{
+				"success": false,
+				"error":   fmt.Sprintf("chunked: HTTP %d at offset %d", chunkResp.StatusCode, offset),
+			})
+		}
+
+		// Read chunk body and write to file
+		chunkWritten := int64(0)
+		for {
+			nr, er := chunkResp.Body.Read(buf)
+			if nr > 0 {
+				nw, ew := progressWriter.Write(buf[0:nr])
+				if nw < 0 || nr < nw {
+					nw = 0
+					if ew == nil {
+						ew = fmt.Errorf("invalid write result")
+					}
+				}
+				chunkWritten += int64(nw)
+				totalWritten += int64(nw)
+				if ew != nil {
+					chunkResp.Body.Close()
+					if ew == ErrDownloadCancelled {
+						return r.vm.ToValue(map[string]interface{}{
+							"success": false,
+							"error":   "download cancelled",
+						})
+					}
+					return r.vm.ToValue(map[string]interface{}{
+						"success": false,
+						"error":   fmt.Sprintf("failed to write file: %v", ew),
+					})
+				}
+				if nr != nw {
+					chunkResp.Body.Close()
+					return r.vm.ToValue(map[string]interface{}{
+						"success": false,
+						"error":   "short write",
+					})
+				}
+
+				if onProgress != nil && totalSize > 0 {
+					_, _ = onProgress(goja.Undefined(), r.vm.ToValue(totalWritten), r.vm.ToValue(totalSize))
+				}
+			}
+			if er != nil {
+				if er != io.EOF {
+					chunkResp.Body.Close()
+					return r.vm.ToValue(map[string]interface{}{
+						"success": false,
+						"error":   fmt.Sprintf("failed to read chunk at offset %d: %v", offset, er),
+					})
+				}
+				break
+			}
+		}
+		chunkResp.Body.Close()
+
+		offset += chunkWritten
+
+		// If server returned 200 (full content) instead of 206, we're done
+		if chunkResp.StatusCode == 200 {
+			break
+		}
+
+		// If we got less data than expected and we know total size, check if done
+		if totalSize > 0 && offset >= totalSize {
+			break
+		}
+
+		// Unknown size: if we got less than chunk size, assume done
+		if totalSize <= 0 && chunkWritten < chunkSize {
+			break
+		}
+	}
+
+	GoLog("[Extension:%s] Chunked download complete: %d bytes to %s\n", r.extensionID, totalWritten, fullPath)
+
+	return r.vm.ToValue(map[string]interface{}{
+		"success": true,
+		"path":    fullPath,
+		"size":    totalWritten,
 	})
 }
 

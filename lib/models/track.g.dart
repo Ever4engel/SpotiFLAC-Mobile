@@ -32,6 +32,8 @@ Track _$TrackFromJson(Map<String, dynamic> json) => Track(
   totalTracks: (json['totalTracks'] as num?)?.toInt(),
   composer: json['composer'] as String?,
   itemType: json['itemType'] as String?,
+  audioQuality: json['audioQuality'] as String?,
+  audioModes: json['audioModes'] as String?,
 );
 
 Map<String, dynamic> _$TrackToJson(Track instance) => <String, dynamic>{
@@ -56,6 +58,8 @@ Map<String, dynamic> _$TrackToJson(Track instance) => <String, dynamic>{
   'totalTracks': instance.totalTracks,
   'composer': instance.composer,
   'itemType': instance.itemType,
+  'audioQuality': instance.audioQuality,
+  'audioModes': instance.audioModes,
 };
 
 ServiceAvailability _$ServiceAvailabilityFromJson(Map<String, dynamic> json) =>

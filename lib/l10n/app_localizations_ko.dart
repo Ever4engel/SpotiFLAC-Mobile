@@ -545,6 +545,16 @@ class AppLocalizationsKo extends AppLocalizations {
       '다음 화면에서 \"모든 파일 관리 권한 허용\"을 활성화해 주세요.';
 
   @override
+  String get setupLanguageTitle => 'Choose Language';
+
+  @override
+  String get setupLanguageDescription =>
+      'Select your preferred language for the app. You can change this later in Settings.';
+
+  @override
+  String get setupLanguageSystemDefault => 'System Default';
+
+  @override
   String get dialogCancel => '취소';
 
   @override

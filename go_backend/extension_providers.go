@@ -43,6 +43,9 @@ type ExtTrackMetadata struct {
 	Copyright string `json:"copyright,omitempty"`
 	Genre     string `json:"genre,omitempty"`
 	Composer  string `json:"composer,omitempty"`
+
+	AudioQuality string `json:"audio_quality,omitempty"`
+	AudioModes   string `json:"audio_modes,omitempty"`
 }
 
 func (t *ExtTrackMetadata) ResolvedCoverURL() string {

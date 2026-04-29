@@ -11,6 +11,7 @@ import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/widgets/track_collection_quick_actions.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
 import 'package:spotiflac_android/utils/clickable_metadata.dart';
+import 'package:spotiflac_android/widgets/audio_quality_badges.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   final String query;
@@ -61,9 +62,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       );
       return;
     }
-    ref
-        .read(downloadQueueProvider.notifier)
-        .addToQueue(track, service);
+    ref.read(downloadQueueProvider.notifier).addToQueue(track, service);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(context.l10n.snackbarAddedToQueue(track.name))),
     );
@@ -169,6 +168,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
             child: Icon(Icons.music_note, color: colorScheme.onSurfaceVariant),
           );
+
     return ListTile(
       leading: coverWidget,
       title: Text(track.name, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -183,16 +183,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: colorScheme.onSurfaceVariant),
           ),
-          ClickableAlbumName(
-            albumName: track.albumName,
-            albumId: track.albumId,
-            artistName: track.artistName,
-            coverUrl: track.coverUrl,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-            ),
+          Row(
+            children: [
+              Flexible(
+                child: ClickableAlbumName(
+                  albumName: track.albumName,
+                  albumId: track.albumId,
+                  artistName: track.artistName,
+                  coverUrl: track.coverUrl,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+              ...buildQualityBadges(
+                audioQuality: track.audioQuality,
+                audioModes: track.audioModes,
+                colorScheme: colorScheme,
+              ),
+            ],
           ),
         ],
       ),

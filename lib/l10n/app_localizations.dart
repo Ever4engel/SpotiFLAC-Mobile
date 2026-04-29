@@ -1120,6 +1120,24 @@ abstract class AppLocalizations {
   /// **'Please enable \"Allow access to manage all files\" in the next screen.'**
   String get setupAllowAccessToManageFiles;
 
+  /// Title for the language selection step in setup
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Language'**
+  String get setupLanguageTitle;
+
+  /// Description for the language selection step in setup
+  ///
+  /// In en, this message translates to:
+  /// **'Select your preferred language for the app. You can change this later in Settings.'**
+  String get setupLanguageDescription;
+
+  /// Option to use the system language
+  ///
+  /// In en, this message translates to:
+  /// **'System Default'**
+  String get setupLanguageSystemDefault;
+
   /// Dialog button - cancel action
   ///
   /// In en, this message translates to:

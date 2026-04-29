@@ -560,6 +560,16 @@ class AppLocalizationsHi extends AppLocalizations {
       'Please enable \"Allow access to manage all files\" in the next screen.';
 
   @override
+  String get setupLanguageTitle => 'Choose Language';
+
+  @override
+  String get setupLanguageDescription =>
+      'Select your preferred language for the app. You can change this later in Settings.';
+
+  @override
+  String get setupLanguageSystemDefault => 'System Default';
+
+  @override
   String get dialogCancel => 'Cancel';
 
   @override

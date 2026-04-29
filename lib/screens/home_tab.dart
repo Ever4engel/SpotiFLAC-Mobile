@@ -32,6 +32,7 @@ import 'package:spotiflac_android/widgets/track_collection_quick_actions.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
 import 'package:spotiflac_android/utils/clickable_metadata.dart';
 import 'package:spotiflac_android/utils/provider_ui_utils.dart';
+import 'package:spotiflac_android/widgets/audio_quality_badges.dart';
 
 class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({super.key});
@@ -4074,6 +4075,11 @@ class _TrackItemWithStatus extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          ...buildQualityBadges(
+                            audioQuality: track.audioQuality,
+                            audioModes: track.audioModes,
+                            colorScheme: colorScheme,
+                          ),
                           if (isInLocalLibrary) ...[
                             const SizedBox(width: 6),
                             Container(
@@ -4854,6 +4860,8 @@ class _ExtensionAlbumScreenState extends ConsumerState<ExtensionAlbumScreen> {
           _albumTotalTracks,
       composer: data['composer']?.toString(),
       source: widget.extensionId,
+      audioQuality: data['audio_quality']?.toString(),
+      audioModes: data['audio_modes']?.toString(),
     );
   }
 
@@ -5011,6 +5019,8 @@ class _ExtensionPlaylistScreenState
       totalTracks: data['total_tracks'] as int?,
       composer: data['composer']?.toString(),
       source: widget.extensionId,
+      audioQuality: data['audio_quality']?.toString(),
+      audioModes: data['audio_modes']?.toString(),
     );
   }
 

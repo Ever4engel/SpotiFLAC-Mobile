@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:spotiflac_android/providers/settings_provider.dart';
 import 'package:spotiflac_android/l10n/l10n.dart';
+import 'package:spotiflac_android/l10n/supported_locales.dart';
 import 'package:spotiflac_android/services/platform_bridge.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/logger.dart';
@@ -25,6 +26,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   final PageController _pageController = PageController();
   int _currentStep = 0;
 
+  String _selectedLocale = 'system';
   bool _storagePermissionGranted = false;
   bool _notificationPermissionGranted = false;
   String? _selectedDirectory;
@@ -32,7 +34,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   bool _isLoading = false;
   int _androidSdkVersion = 0;
 
-  int get _totalSteps => _androidSdkVersion >= 33 ? 4 : 3;
+  int get _totalSteps => _androidSdkVersion >= 33 ? 5 : 4;
 
   @override
   void initState() {
@@ -483,9 +485,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   }
 
   bool _isStepCompleted(int step) {
-    if (step == 0) return true;
+    if (step == 0) return true; // Welcome
+    if (step == 1) return true; // Language (always valid)
 
-    final logicStep = step - 1;
+    final logicStep = step - 2;
 
     if (_androidSdkVersion >= 33) {
       switch (logicStep) {
@@ -573,6 +576,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
                   _buildWelcomeStep(colorScheme),
+                  _buildLanguageStep(colorScheme),
                   _buildStorageStep(colorScheme),
                   if (_androidSdkVersion >= 33)
                     _buildNotificationStep(colorScheme),
@@ -666,6 +670,167 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  // --- Language data (native names, always readable regardless of current locale) ---
+  static const _allLanguages = [
+    ('system', 'System Default', Icons.phone_android),
+    ('en', 'English', Icons.language),
+    ('id', 'Bahasa Indonesia', Icons.language),
+    ('de', 'Deutsch', Icons.language),
+    ('es', 'Español', Icons.language),
+    ('es_ES', 'Español (España)', Icons.language),
+    ('fr', 'Français', Icons.language),
+    ('hi', 'हिन्दी', Icons.language),
+    ('ja', '日本語', Icons.language),
+    ('ko', '한국어', Icons.language),
+    ('nl', 'Nederlands', Icons.language),
+    ('pt', 'Português', Icons.language),
+    ('pt_PT', 'Português (Brasil)', Icons.language),
+    ('ru', 'Русский', Icons.language),
+    ('tr', 'Türkçe', Icons.language),
+    ('zh', '简体中文', Icons.language),
+    ('zh_CN', '简体中文 (中国)', Icons.language),
+    ('zh_TW', '繁體中文', Icons.language),
+  ];
+
+  List<(String, String, IconData)> get _filteredLanguages {
+    return _allLanguages.where((lang) {
+      if (lang.$1 == 'system') return true;
+      return filteredLocaleCodes.contains(lang.$1);
+    }).toList();
+  }
+
+  void _onLanguageSelected(String locale) {
+    setState(() => _selectedLocale = locale);
+    ref.read(settingsProvider.notifier).setLocale(locale);
+  }
+
+  Widget _buildLanguageStep(ColorScheme colorScheme) {
+    final languages = _filteredLanguages;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+        // Match _StepLayout sizing exactly
+        final iconPadding = (shortestSide * 0.06).clamp(16.0, 24.0);
+        final iconSize = (shortestSide * 0.12).clamp(32.0, 48.0);
+        final titleGap = (shortestSide * 0.06).clamp(16.0, 32.0);
+        final descriptionGap = (shortestSide * 0.04).clamp(8.0, 16.0);
+        final actionGap = (shortestSide * 0.09).clamp(20.0, 48.0);
+
+        return Column(
+          children: [
+            // Header: identical to _StepLayout (same padding, spacing, styles)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              child: Column(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(iconPadding),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.translate,
+                      size: iconSize,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                  SizedBox(height: titleGap),
+                  Text(
+                    context.l10n.setupLanguageTitle,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: descriptionGap),
+                  Text(
+                    context.l10n.setupLanguageDescription,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: actionGap),
+                ],
+              ),
+            ),
+            // Language list (scrollable action area)
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 80),
+                itemCount: languages.length,
+                itemBuilder: (context, index) {
+                  final lang = languages[index];
+                  final code = lang.$1;
+                  final name = lang.$2;
+                  final isSelected = _selectedLocale == code;
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Material(
+                      color: isSelected
+                          ? colorScheme.primaryContainer
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => _onLanguageSelected(code),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                lang.$3,
+                                color: isSelected
+                                    ? colorScheme.onPrimaryContainer
+                                    : colorScheme.onSurfaceVariant,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  code == 'system'
+                                      ? context.l10n.setupLanguageSystemDefault
+                                      : name,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                    color: isSelected
+                                        ? colorScheme.onPrimaryContainer
+                                        : colorScheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                              if (isSelected)
+                                Icon(
+                                  Icons.check_circle,
+                                  color: colorScheme.onPrimaryContainer,
+                                  size: 22,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         );
       },
     );

@@ -75,7 +75,7 @@ func (r *extensionRuntime) fetchPolyfill(call goja.FunctionCall) goja.Value {
 		req.Header.Set(k, v)
 	}
 	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", "SpotiFLAC-Extension/1.0")
+		req.Header.Set("User-Agent", appUserAgent())
 	}
 	if bodyStr != "" && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")

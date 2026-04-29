@@ -461,7 +461,7 @@ func (r *extensionRuntime) authExchangeCodeWithPKCE(call goja.FunctionCall) goja
 	req = r.bindDownloadCancelContext(req)
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", "SpotiFLAC-Extension/1.0")
+	req.Header.Set("User-Agent", appUserAgent())
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {

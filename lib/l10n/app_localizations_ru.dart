@@ -569,6 +569,16 @@ class AppLocalizationsRu extends AppLocalizations {
       'Пожалуйста, включите \"Разрешить доступ для управления всеми файлами\" на следующем экране.';
 
   @override
+  String get setupLanguageTitle => 'Choose Language';
+
+  @override
+  String get setupLanguageDescription =>
+      'Select your preferred language for the app. You can change this later in Settings.';
+
+  @override
+  String get setupLanguageSystemDefault => 'System Default';
+
+  @override
   String get dialogCancel => 'Отмена';
 
   @override

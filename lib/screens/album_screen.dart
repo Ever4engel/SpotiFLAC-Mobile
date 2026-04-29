@@ -20,6 +20,7 @@ import 'package:spotiflac_android/widgets/animation_utils.dart';
 import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
 import 'package:spotiflac_android/utils/clickable_metadata.dart';
+import 'package:spotiflac_android/widgets/audio_quality_badges.dart';
 
 class _AlbumCache {
   static final Map<String, _CacheEntry> _cache = {};
@@ -320,6 +321,8 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
           totalTracksFallback ??
           _albumTotalTracks,
       composer: data['composer']?.toString(),
+      audioQuality: data['audio_quality']?.toString(),
+      audioModes: data['audio_modes']?.toString(),
     );
   }
 
@@ -1011,6 +1014,11 @@ class _AlbumTrackItem extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
+              ),
+              ...buildQualityBadges(
+                audioQuality: track.audioQuality,
+                audioModes: track.audioModes,
+                colorScheme: colorScheme,
               ),
               if (isInLocalLibrary || isInHistory) ...[
                 const SizedBox(width: 6),

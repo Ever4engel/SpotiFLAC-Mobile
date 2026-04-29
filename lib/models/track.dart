@@ -25,6 +25,8 @@ class Track {
   final int? totalTracks;
   final String? composer;
   final String? itemType;
+  final String? audioQuality;
+  final String? audioModes;
 
   const Track({
     required this.id,
@@ -48,6 +50,8 @@ class Track {
     this.totalTracks,
     this.composer,
     this.itemType,
+    this.audioQuality,
+    this.audioModes,
   });
 
   bool get isSingle {
@@ -72,6 +76,11 @@ class Track {
   Map<String, dynamic> toJson() => _$TrackToJson(this);
 
   bool get isFromExtension => source != null && source!.isNotEmpty;
+
+  bool get isDolbyAtmos =>
+      audioModes != null && audioModes!.contains('DOLBY_ATMOS');
+
+  bool get hasAudioQuality => audioQuality != null && audioQuality!.isNotEmpty;
 }
 
 @JsonSerializable()

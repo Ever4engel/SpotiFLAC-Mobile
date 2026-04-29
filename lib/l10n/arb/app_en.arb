@@ -707,6 +707,18 @@
   "@setupAllowAccessToManageFiles": {
     "description": "Instruction for file access permission"
   },
+  "setupLanguageTitle": "Choose Language",
+  "@setupLanguageTitle": {
+    "description": "Title for the language selection step in setup"
+  },
+  "setupLanguageDescription": "Select your preferred language for the app. You can change this later in Settings.",
+  "@setupLanguageDescription": {
+    "description": "Description for the language selection step in setup"
+  },
+  "setupLanguageSystemDefault": "System Default",
+  "@setupLanguageSystemDefault": {
+    "description": "Option to use the system language"
+  },
   "dialogCancel": "Cancel",
   "@dialogCancel": {
     "description": "Dialog button - cancel action"

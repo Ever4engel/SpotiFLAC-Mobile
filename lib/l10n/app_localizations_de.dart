@@ -571,6 +571,16 @@ class AppLocalizationsDe extends AppLocalizations {
       'Bitte aktiviere \"Zugriff auf alle Dateien erlauben\" auf dem nächsten Bildschirm.';
 
   @override
+  String get setupLanguageTitle => 'Choose Language';
+
+  @override
+  String get setupLanguageDescription =>
+      'Select your preferred language for the app. You can change this later in Settings.';
+
+  @override
+  String get setupLanguageSystemDefault => 'System Default';
+
+  @override
   String get dialogCancel => 'Abbrechen';
 
   @override

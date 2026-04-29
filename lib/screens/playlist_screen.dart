@@ -18,6 +18,7 @@ import 'package:spotiflac_android/widgets/download_service_picker.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
 import 'package:spotiflac_android/widgets/track_collection_quick_actions.dart';
 import 'package:spotiflac_android/widgets/animation_utils.dart';
+import 'package:spotiflac_android/widgets/audio_quality_badges.dart';
 
 class PlaylistScreen extends ConsumerStatefulWidget {
   final String playlistName;
@@ -208,6 +209,8 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
       releaseDate: data['release_date']?.toString(),
       totalTracks: data['total_tracks'] as int?,
       composer: data['composer']?.toString(),
+      audioQuality: data['audio_quality']?.toString(),
+      audioModes: data['audio_modes']?.toString(),
     );
   }
 
@@ -875,6 +878,11 @@ class _PlaylistTrackItem extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
+              ),
+              ...buildQualityBadges(
+                audioQuality: track.audioQuality,
+                audioModes: track.audioModes,
+                colorScheme: colorScheme,
               ),
               if (isInLocalLibrary || isInHistory) ...[
                 const SizedBox(width: 6),

@@ -563,6 +563,16 @@ class AppLocalizationsId extends AppLocalizations {
       'Harap aktifkan \"Izinkan akses untuk mengelola semua file\" di layar berikutnya.';
 
   @override
+  String get setupLanguageTitle => 'Choose Language';
+
+  @override
+  String get setupLanguageDescription =>
+      'Select your preferred language for the app. You can change this later in Settings.';
+
+  @override
+  String get setupLanguageSystemDefault => 'System Default';
+
+  @override
   String get dialogCancel => 'Batal';
 
   @override

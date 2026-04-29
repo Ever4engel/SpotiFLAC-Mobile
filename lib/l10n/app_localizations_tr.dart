@@ -571,6 +571,16 @@ class AppLocalizationsTr extends AppLocalizations {
       'Lütfen sonraki ekranda \"Tüm dosyaları yönetme erişimine izin ver\" seçeneğini açın.';
 
   @override
+  String get setupLanguageTitle => 'Choose Language';
+
+  @override
+  String get setupLanguageDescription =>
+      'Select your preferred language for the app. You can change this later in Settings.';
+
+  @override
+  String get setupLanguageSystemDefault => 'System Default';
+
+  @override
   String get dialogCancel => 'İptal';
 
   @override

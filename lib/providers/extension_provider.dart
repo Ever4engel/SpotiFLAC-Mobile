@@ -85,6 +85,7 @@ class Extension {
   final URLHandler? urlHandler;
   final TrackMatching? trackMatching;
   final PostProcessing? postProcessing;
+  final List<ExtensionServiceHealthCheck> serviceHealth;
   final Map<String, dynamic> capabilities;
 
   const Extension({
@@ -110,6 +111,7 @@ class Extension {
     this.urlHandler,
     this.trackMatching,
     this.postProcessing,
+    this.serviceHealth = const [],
     this.capabilities = const {},
   });
 
@@ -162,6 +164,15 @@ class Extension {
               json['post_processing'] as Map<String, dynamic>,
             )
           : null,
+      serviceHealth:
+          (json['service_health'] as List<dynamic>?)
+              ?.map(
+                (h) => ExtensionServiceHealthCheck.fromJson(
+                  h as Map<String, dynamic>,
+                ),
+              )
+              .toList() ??
+          [],
       capabilities: (json['capabilities'] as Map<String, dynamic>?) ?? const {},
     );
   }
@@ -189,6 +200,7 @@ class Extension {
     URLHandler? urlHandler,
     TrackMatching? trackMatching,
     PostProcessing? postProcessing,
+    List<ExtensionServiceHealthCheck>? serviceHealth,
     Map<String, dynamic>? capabilities,
   }) {
     return Extension(
@@ -215,6 +227,7 @@ class Extension {
       urlHandler: urlHandler ?? this.urlHandler,
       trackMatching: trackMatching ?? this.trackMatching,
       postProcessing: postProcessing ?? this.postProcessing,
+      serviceHealth: serviceHealth ?? this.serviceHealth,
       capabilities: capabilities ?? this.capabilities,
     );
   }
@@ -223,6 +236,7 @@ class Extension {
   bool get hasURLHandler => urlHandler?.enabled ?? false;
   bool get hasCustomMatching => trackMatching?.customMatching ?? false;
   bool get hasPostProcessing => postProcessing?.enabled ?? false;
+  bool get hasServiceHealth => serviceHealth.isNotEmpty;
   bool get hasHomeFeed => capabilities['homeFeed'] == true;
   bool get hasBrowseCategories => capabilities['browseCategories'] == true;
   List<String> get replacesBuiltInProviders {
@@ -597,6 +611,123 @@ class URLHandler {
   }
 }
 
+class ExtensionServiceHealthCheck {
+  final String id;
+  final String? label;
+  final String url;
+  final String method;
+  final String? serviceKey;
+  final int? timeoutMs;
+  final int? cacheTtlSeconds;
+  final bool required;
+
+  const ExtensionServiceHealthCheck({
+    required this.id,
+    this.label,
+    required this.url,
+    this.method = 'GET',
+    this.serviceKey,
+    this.timeoutMs,
+    this.cacheTtlSeconds,
+    this.required = false,
+  });
+
+  factory ExtensionServiceHealthCheck.fromJson(Map<String, dynamic> json) {
+    return ExtensionServiceHealthCheck(
+      id: json['id'] as String? ?? '',
+      label: json['label'] as String?,
+      url: json['url'] as String? ?? '',
+      method: json['method'] as String? ?? 'GET',
+      serviceKey: json['serviceKey'] as String?,
+      timeoutMs: json['timeoutMs'] as int?,
+      cacheTtlSeconds: json['cacheTtlSeconds'] as int?,
+      required: json['required'] as bool? ?? false,
+    );
+  }
+}
+
+class ExtensionHealthStatus {
+  final String extensionId;
+  final String status;
+  final DateTime? checkedAt;
+  final List<ExtensionHealthCheckStatus> checks;
+
+  const ExtensionHealthStatus({
+    required this.extensionId,
+    required this.status,
+    this.checkedAt,
+    this.checks = const [],
+  });
+
+  factory ExtensionHealthStatus.fromJson(Map<String, dynamic> json) {
+    return ExtensionHealthStatus(
+      extensionId: json['extension_id'] as String? ?? '',
+      status: json['status'] as String? ?? 'unknown',
+      checkedAt: DateTime.tryParse(json['checked_at'] as String? ?? ''),
+      checks:
+          (json['checks'] as List<dynamic>?)
+              ?.map(
+                (c) => ExtensionHealthCheckStatus.fromJson(
+                  c as Map<String, dynamic>,
+                ),
+              )
+              .toList() ??
+          [],
+    );
+  }
+
+  bool get isSupported => status != 'unsupported';
+}
+
+class ExtensionHealthCheckStatus {
+  final String id;
+  final String? label;
+  final String url;
+  final String method;
+  final String? serviceKey;
+  final bool required;
+  final String status;
+  final int? httpStatus;
+  final int latencyMs;
+  final String? message;
+  final String? error;
+  final DateTime? checkedAt;
+
+  const ExtensionHealthCheckStatus({
+    required this.id,
+    this.label,
+    required this.url,
+    required this.method,
+    this.serviceKey,
+    this.required = false,
+    required this.status,
+    this.httpStatus,
+    this.latencyMs = 0,
+    this.message,
+    this.error,
+    this.checkedAt,
+  });
+
+  factory ExtensionHealthCheckStatus.fromJson(Map<String, dynamic> json) {
+    return ExtensionHealthCheckStatus(
+      id: json['id'] as String? ?? '',
+      label: json['label'] as String?,
+      url: json['url'] as String? ?? '',
+      method: json['method'] as String? ?? 'GET',
+      serviceKey: json['service_key'] as String?,
+      required: json['required'] as bool? ?? false,
+      status: json['status'] as String? ?? 'unknown',
+      httpStatus: json['http_status'] as int?,
+      latencyMs: json['latency_ms'] as int? ?? 0,
+      message: json['message'] as String?,
+      error: json['error'] as String?,
+      checkedAt: DateTime.tryParse(json['checked_at'] as String? ?? ''),
+    );
+  }
+
+  String get displayLabel => label?.trim().isNotEmpty == true ? label! : id;
+}
+
 class PostProcessingHook {
   final String id;
   final String name;
@@ -729,6 +860,7 @@ class ExtensionState {
   final List<BuiltInProviderSpec> builtInProviders;
   final List<String> providerPriority;
   final List<String> metadataProviderPriority;
+  final Map<String, ExtensionHealthStatus> healthStatuses;
   final bool isLoading;
   final String? error;
   final bool isInitialized;
@@ -738,6 +870,7 @@ class ExtensionState {
     this.builtInProviders = const [],
     this.providerPriority = const [],
     this.metadataProviderPriority = const [],
+    this.healthStatuses = const {},
     this.isLoading = false,
     this.error,
     this.isInitialized = false,
@@ -748,6 +881,7 @@ class ExtensionState {
     List<BuiltInProviderSpec>? builtInProviders,
     List<String>? providerPriority,
     List<String>? metadataProviderPriority,
+    Map<String, ExtensionHealthStatus>? healthStatuses,
     bool? isLoading,
     String? error,
     bool? isInitialized,
@@ -758,6 +892,7 @@ class ExtensionState {
       providerPriority: providerPriority ?? this.providerPriority,
       metadataProviderPriority:
           metadataProviderPriority ?? this.metadataProviderPriority,
+      healthStatuses: healthStatuses ?? this.healthStatuses,
       isLoading: isLoading ?? this.isLoading,
       error: error,
       isInitialized: isInitialized ?? this.isInitialized,
@@ -765,10 +900,28 @@ class ExtensionState {
   }
 }
 
+class ExtensionInstallBatchResult {
+  final int attempted;
+  final int installed;
+  final Map<String, String> failures;
+
+  const ExtensionInstallBatchResult({
+    required this.attempted,
+    required this.installed,
+    this.failures = const {},
+  });
+
+  bool get hasFailures => failures.isNotEmpty;
+  bool get anyInstalled => installed > 0;
+}
+
 class ExtensionNotifier extends Notifier<ExtensionState> {
+  static const _extensionHealthCacheTtl = Duration(seconds: 60);
   AppLifecycleListener? _appLifecycleListener;
   bool _cleanupInFlight = false;
   Completer<void>? _initializationCompleter;
+  final Map<String, DateTime> _healthExpiresAt = {};
+  final Map<String, Future<ExtensionHealthStatus?>> _healthInFlight = {};
 
   @override
   ExtensionState build() {
@@ -778,6 +931,8 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
     ref.onDispose(() {
       _appLifecycleListener?.dispose();
       _appLifecycleListener = null;
+      _healthExpiresAt.clear();
+      _healthInFlight.clear();
     });
     return const ExtensionState();
   }
@@ -897,6 +1052,7 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       await _reconcileDefaultDownloadService();
       await _reconcileMetadataProviderPriority();
       _reconcileSearchProvider();
+      _scheduleExtensionHealthRefresh(extensions);
       _log.d('Loaded ${extensions.length} extensions');
 
       for (final ext in extensions) {
@@ -910,6 +1066,79 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       _log.e('Failed to refresh extensions: $e');
       state = state.copyWith(error: e.toString());
     }
+  }
+
+  void _scheduleExtensionHealthRefresh(List<Extension> extensions) {
+    for (final ext in extensions) {
+      if (!ext.enabled || !ext.hasServiceHealth) continue;
+      unawaited(checkExtensionHealth(ext.id));
+    }
+  }
+
+  void refreshEnabledExtensionHealth() {
+    _scheduleExtensionHealthRefresh(state.extensions);
+  }
+
+  Future<ExtensionHealthStatus?> checkExtensionHealth(
+    String extensionId, {
+    bool force = false,
+  }) async {
+    final ext = state.extensions
+        .where((extension) => extension.id == extensionId)
+        .firstOrNull;
+    if (ext == null || !ext.hasServiceHealth) {
+      return null;
+    }
+
+    final expiresAt = _healthExpiresAt[extensionId];
+    final cached = state.healthStatuses[extensionId];
+    if (!force &&
+        cached != null &&
+        expiresAt != null &&
+        DateTime.now().isBefore(expiresAt)) {
+      return cached;
+    }
+
+    final inFlight = _healthInFlight[extensionId];
+    if (!force && inFlight != null) {
+      return inFlight;
+    }
+
+    final future = () async {
+      try {
+        final result = await PlatformBridge.checkExtensionHealth(extensionId);
+        final status = ExtensionHealthStatus.fromJson(result);
+        final updated = Map<String, ExtensionHealthStatus>.of(
+          state.healthStatuses,
+        )..[extensionId] = status;
+        _healthExpiresAt[extensionId] = DateTime.now().add(
+          _extensionHealthCacheTtl,
+        );
+        state = state.copyWith(healthStatuses: updated);
+        return status;
+      } catch (e) {
+        _log.w('Failed to check extension health for $extensionId: $e');
+        final status = ExtensionHealthStatus(
+          extensionId: extensionId,
+          status: 'unknown',
+          checkedAt: DateTime.now(),
+          checks: const [],
+        );
+        final updated = Map<String, ExtensionHealthStatus>.of(
+          state.healthStatuses,
+        )..[extensionId] = status;
+        _healthExpiresAt[extensionId] = DateTime.now().add(
+          const Duration(seconds: 20),
+        );
+        state = state.copyWith(healthStatuses: updated);
+        return status;
+      } finally {
+        _healthInFlight.remove(extensionId);
+      }
+    }();
+
+    _healthInFlight[extensionId] = future;
+    return future;
   }
 
   Future<void> refreshBuiltInProviders() async {
@@ -940,6 +1169,50 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       state = state.copyWith(isLoading: false, error: e.toString());
       return false;
     }
+  }
+
+  Future<ExtensionInstallBatchResult> installExtensions(
+    List<String> filePaths,
+  ) async {
+    final uniquePaths = <String>[];
+    for (final path in filePaths) {
+      final trimmed = path.trim();
+      if (trimmed.isEmpty || uniquePaths.contains(trimmed)) continue;
+      uniquePaths.add(trimmed);
+    }
+
+    if (uniquePaths.isEmpty) {
+      return const ExtensionInstallBatchResult(attempted: 0, installed: 0);
+    }
+
+    state = state.copyWith(isLoading: true, error: null);
+
+    var installed = 0;
+    final failures = <String, String>{};
+
+    for (final path in uniquePaths) {
+      try {
+        final result = await PlatformBridge.loadExtensionFromPath(path);
+        installed++;
+        _log.i('Installed extension: ${result['name']}');
+      } catch (e) {
+        _log.e('Failed to install extension from $path: $e');
+        failures[path] = e.toString();
+      }
+    }
+
+    if (installed > 0) {
+      await refreshExtensions();
+    }
+
+    final firstError = failures.values.firstOrNull;
+    state = state.copyWith(isLoading: false, error: firstError);
+
+    return ExtensionInstallBatchResult(
+      attempted: uniquePaths.length,
+      installed: installed,
+      failures: failures,
+    );
   }
 
   Future<Map<String, dynamic>> checkExtensionUpgrade(String filePath) async {
@@ -1006,6 +1279,13 @@ class ExtensionNotifier extends Notifier<ExtensionState> {
       await _reconcileDefaultDownloadService();
       await _reconcileMetadataProviderPriority();
       _reconcileSearchProvider();
+
+      final updatedExt = extensions
+          .where((extension) => extension.id == extensionId)
+          .firstOrNull;
+      if (enabled && updatedExt?.hasServiceHealth == true) {
+        unawaited(checkExtensionHealth(extensionId, force: true));
+      }
 
       if (!enabled && ext != null) {
         final settings = ref.read(settingsProvider);

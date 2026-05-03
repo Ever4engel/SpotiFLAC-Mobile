@@ -150,6 +150,10 @@ class _DownloadServicePickerState extends ConsumerState<DownloadServicePicker> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(extensionProvider.notifier).refreshEnabledExtensionHealth();
+    });
     final builtInServices = _availableBuiltInServices();
     final downloadExtensions = _downloadExtensions();
     final recommended = widget.recommendedService;
@@ -196,7 +200,7 @@ class _DownloadServicePickerState extends ConsumerState<DownloadServicePicker> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    ref.watch(extensionProvider);
+    final extensionState = ref.watch(extensionProvider);
     final builtInServices = _availableBuiltInServices();
     final downloadExtensions = _downloadExtensions();
     final hasProviders =
@@ -273,6 +277,9 @@ class _DownloadServicePickerState extends ConsumerState<DownloadServicePicker> {
                             label: widget.recommendedService == ext.id
                                 ? '${ext.displayName} (Recommended)'
                                 : ext.displayName,
+                            healthStatus: ext.hasServiceHealth
+                                ? extensionState.healthStatuses[ext.id]?.status
+                                : null,
                             isSelected: _selectedService == ext.id,
                             onTap: () =>
                                 setState(() => _selectedService = ext.id),
@@ -421,6 +428,7 @@ class _ServiceChip extends StatelessWidget {
   final bool isSelected;
   final VoidCallback? onTap;
   final String? iconPath;
+  final String? healthStatus;
   final bool isDisabled;
 
   const _ServiceChip({
@@ -428,6 +436,7 @@ class _ServiceChip extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
     this.iconPath,
+    this.healthStatus,
     this.isDisabled = false,
   });
 
@@ -455,6 +464,10 @@ class _ServiceChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (healthStatus != null) ...[
+              _ServiceHealthDot(status: healthStatus!, isDisabled: isDisabled),
+              const SizedBox(width: 8),
+            ],
             if (iconPath != null) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
@@ -491,6 +504,65 @@ class _ServiceChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _ServiceHealthDot extends StatelessWidget {
+  final String status;
+  final bool isDisabled;
+
+  const _ServiceHealthDot({required this.status, required this.isDisabled});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDisabled
+        ? Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.3)
+        : _serviceHealthColor(status);
+    return Tooltip(
+      message: _serviceHealthTooltip(status),
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.35),
+              blurRadius: 6,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Color _serviceHealthColor(String status) {
+  switch (status) {
+    case 'online':
+      return const Color(0xFF35D07F);
+    case 'degraded':
+    case 'unknown':
+      return const Color(0xFFFFC857);
+    case 'offline':
+      return const Color(0xFFFF4D5E);
+    default:
+      return const Color(0xFFFFC857);
+  }
+}
+
+String _serviceHealthTooltip(String status) {
+  switch (status) {
+    case 'online':
+      return 'Service online';
+    case 'degraded':
+      return 'Service degraded';
+    case 'offline':
+      return 'Service offline';
+    default:
+      return 'Service status unknown';
   }
 }
 

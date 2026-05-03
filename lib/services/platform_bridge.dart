@@ -1159,6 +1159,15 @@ class PlatformBridge {
     return _decodeRequiredMapResult(result, 'getExtensionSettings');
   }
 
+  static Future<Map<String, dynamic>> checkExtensionHealth(
+    String extensionId,
+  ) async {
+    final result = await _channel.invokeMethod('checkExtensionHealth', {
+      'extension_id': extensionId,
+    });
+    return _decodeRequiredMapResult(result, 'checkExtensionHealth');
+  }
+
   static Future<void> setExtensionSettings(
     String extensionId,
     Map<String, dynamic> settings,

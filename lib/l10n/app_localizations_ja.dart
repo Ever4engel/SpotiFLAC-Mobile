@@ -1441,6 +1441,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get extensionsInstalledSuccess => '拡張のインストールが成功しました';
 
   @override
+  String extensionsInstalledCount(int count) {
+    return '$count extensions installed successfully';
+  }
+
+  @override
+  String extensionsInstallPartialSuccess(int installed, int attempted) {
+    return 'Installed $installed of $attempted extensions';
+  }
+
+  @override
   String get extensionsDownloadPriority => 'ダウンロードの優先度';
 
   @override

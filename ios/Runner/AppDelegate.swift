@@ -671,6 +671,13 @@ import Gobackend  // Import Go framework
             let response = GobackendGetExtensionSettingsJSON(extensionId, &error)
             if let error = error { throw error }
             return response
+
+        case "checkExtensionHealth":
+            let args = call.arguments as! [String: Any]
+            let extensionId = args["extension_id"] as! String
+            let response = GobackendCheckExtensionHealthJSON(extensionId, &error)
+            if let error = error { throw error }
+            return response
             
         case "setExtensionSettings":
             let args = call.arguments as! [String: Any]

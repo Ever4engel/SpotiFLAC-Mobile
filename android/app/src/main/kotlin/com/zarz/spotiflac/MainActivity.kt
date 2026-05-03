@@ -3134,6 +3134,13 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(response)
                         }
+                        "checkExtensionHealth" -> {
+                            val extensionId = call.argument<String>("extension_id") ?: ""
+                            val response = withContext(Dispatchers.IO) {
+                                Gobackend.checkExtensionHealthJSON(extensionId)
+                            }
+                            result.success(response)
+                        }
                         "setExtensionSettings" -> {
                             val extensionId = call.argument<String>("extension_id") ?: ""
                             val settingsJson = call.argument<String>("settings") ?: "{}"

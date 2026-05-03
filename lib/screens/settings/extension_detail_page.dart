@@ -23,11 +23,15 @@ class ExtensionDetailPage extends ConsumerStatefulWidget {
 class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
   Map<String, dynamic> _settings = {};
   bool _isLoadingSettings = true;
+  bool _isRefreshingHealth = false;
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshHealth();
+    });
   }
 
   Future<void> _loadSettings() async {
@@ -38,6 +42,26 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
       _settings = settings;
       _isLoadingSettings = false;
     });
+  }
+
+  Future<void> _refreshHealth({bool force = false}) async {
+    final ext = ref
+        .read(extensionProvider)
+        .extensions
+        .where((extension) => extension.id == widget.extensionId)
+        .firstOrNull;
+    if (ext == null || !ext.hasServiceHealth) return;
+
+    setState(() => _isRefreshingHealth = true);
+    try {
+      await ref
+          .read(extensionProvider.notifier)
+          .checkExtensionHealth(widget.extensionId, force: force);
+    } finally {
+      if (mounted) {
+        setState(() => _isRefreshingHealth = false);
+      }
+    }
   }
 
   @override
@@ -59,6 +83,7 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final topPadding = normalizedHeaderTopPadding(context);
     final hasError = extension.status == 'error';
+    final healthStatus = extState.healthStatuses[extension.id];
 
     return PopScope(
       canPop: true,
@@ -227,6 +252,32 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
               ),
             ),
 
+            if (extension.hasServiceHealth) ...[
+              const SliverToBoxAdapter(
+                child: SettingsSectionHeader(title: 'Service Status'),
+              ),
+              SliverToBoxAdapter(
+                child: SettingsGroup(
+                  children: [
+                    _HealthSummaryItem(
+                      status: healthStatus,
+                      isRefreshing: _isRefreshingHealth,
+                      onRefresh: () => _refreshHealth(force: true),
+                    ),
+                    if (healthStatus != null)
+                      ...healthStatus.checks.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final check = entry.value;
+                        return _HealthCheckItem(
+                          check: check,
+                          showDivider: index < healthStatus.checks.length - 1,
+                        );
+                      }),
+                  ],
+                ),
+              ),
+            ],
+
             SliverToBoxAdapter(
               child: SettingsSectionHeader(
                 title: context.l10n.extensionCapabilities,
@@ -284,6 +335,14 @@ class _ExtensionDetailPageState extends ConsumerState<ExtensionDetailPage> {
                         ? context.l10n.extensionPatternsCount(
                             extension.urlHandler!.patterns.length,
                           )
+                        : null,
+                  ),
+                  _CapabilityItem(
+                    icon: Icons.monitor_heart_outlined,
+                    title: 'Service health',
+                    enabled: extension.hasServiceHealth,
+                    subtitle: extension.hasServiceHealth
+                        ? '${extension.serviceHealth.length} check${extension.serviceHealth.length == 1 ? '' : 's'} configured'
                         : null,
                     showDivider: false,
                   ),
@@ -623,6 +682,203 @@ class _CapabilityItem extends StatelessWidget {
               Icon(
                 enabled ? Icons.check_circle : Icons.cancel_outlined,
                 color: enabled ? colorScheme.primary : colorScheme.outline,
+              ),
+            ],
+          ),
+        ),
+        if (showDivider)
+          Divider(
+            height: 1,
+            thickness: 1,
+            indent: 56,
+            endIndent: 16,
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
+      ],
+    );
+  }
+}
+
+Color _healthStatusColor(ColorScheme colorScheme, String status) {
+  switch (status) {
+    case 'online':
+      return colorScheme.primary;
+    case 'degraded':
+      return colorScheme.tertiary;
+    case 'offline':
+      return colorScheme.error;
+    default:
+      return colorScheme.onSurfaceVariant;
+  }
+}
+
+IconData _healthStatusIcon(String status) {
+  switch (status) {
+    case 'online':
+      return Icons.check_circle;
+    case 'degraded':
+      return Icons.warning_amber_rounded;
+    case 'offline':
+      return Icons.error_outline;
+    default:
+      return Icons.help_outline;
+  }
+}
+
+String _healthStatusLabel(String status) {
+  switch (status) {
+    case 'online':
+      return 'Online';
+    case 'degraded':
+      return 'Degraded';
+    case 'offline':
+      return 'Offline';
+    case 'unsupported':
+      return 'Not configured';
+    default:
+      return 'Unknown';
+  }
+}
+
+class _HealthSummaryItem extends StatelessWidget {
+  final ExtensionHealthStatus? status;
+  final bool isRefreshing;
+  final VoidCallback onRefresh;
+
+  const _HealthSummaryItem({
+    required this.status,
+    required this.isRefreshing,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final statusValue = status?.status ?? 'unknown';
+    final color = _healthStatusColor(colorScheme, statusValue);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Icon(_healthStatusIcon(statusValue), color: color),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _healthStatusLabel(statusValue),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (status?.checkedAt != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Last checked ${TimeOfDay.fromDateTime(status!.checkedAt!.toLocal()).format(context)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Refresh status',
+                onPressed: isRefreshing ? null : onRefresh,
+                icon: isRefreshing
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colorScheme.primary,
+                        ),
+                      )
+                    : const Icon(Icons.refresh),
+              ),
+            ],
+          ),
+        ),
+        Divider(
+          height: 1,
+          thickness: 1,
+          indent: 56,
+          endIndent: 16,
+          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ],
+    );
+  }
+}
+
+class _HealthCheckItem extends StatelessWidget {
+  final ExtensionHealthCheckStatus check;
+  final bool showDivider;
+
+  const _HealthCheckItem({required this.check, this.showDivider = true});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final color = _healthStatusColor(colorScheme, check.status);
+    final detailParts = <String>[
+      _healthStatusLabel(check.status),
+      if (check.httpStatus != null) 'HTTP ${check.httpStatus}',
+      if (check.serviceKey?.isNotEmpty == true) check.serviceKey!,
+      if (check.latencyMs > 0) '${check.latencyMs} ms',
+      if (check.required) 'required',
+    ];
+    final message = check.error?.trim().isNotEmpty == true
+        ? check.error!
+        : check.message;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(_healthStatusIcon(check.status), color: color),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      check.displayLabel,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      detailParts.join(' · '),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (message != null && message.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        message,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: check.error != null
+                              ? colorScheme.error
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),

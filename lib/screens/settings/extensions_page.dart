@@ -53,6 +53,8 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
       await ref
           .read(extensionProvider.notifier)
           .initialize(extensionsDir, dataDir);
+    } else {
+      ref.read(extensionProvider.notifier).refreshEnabledExtensionHealth();
     }
   }
 
@@ -212,6 +214,7 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
                     final ext = entry.value;
                     return _ExtensionItem(
                       extension: ext,
+                      healthStatus: extState.healthStatuses[ext.id],
                       showDivider: index < extState.extensions.length - 1,
                       onTap: () => Navigator.push(
                         context,
@@ -285,47 +288,68 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
   Future<void> _installExtension() async {
     final result = await FilePicker.pickFiles(
       type: FileType.any,
-      allowMultiple: false,
+      allowMultiple: true,
     );
 
     if (result != null && result.files.isNotEmpty) {
-      final file = result.files.first;
-      if (file.path != null) {
-        if (!file.path!.endsWith('.spotiflac-ext')) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(context.l10n.snackbarSelectExtFile)),
-            );
-          }
-          return;
-        }
+      final selectedPaths = result.files
+          .map((file) => file.path)
+          .whereType<String>()
+          .toList();
+      final extensionPaths = selectedPaths
+          .where((path) => path.toLowerCase().endsWith('.spotiflac-ext'))
+          .toList();
 
-        final success = await ref
-            .read(extensionProvider.notifier)
-            .installExtension(file.path!);
-
+      if (extensionPaths.length != selectedPaths.length) {
         if (mounted) {
-          final extState = ref.read(extensionProvider);
-          String message;
-          if (success) {
-            message = context.l10n.extensionsInstalledSuccess;
-          } else {
-            message = _getFriendlyErrorMessage(extState.error);
-          }
-
-          ref.read(extensionProvider.notifier).clearError();
-
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(message)));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.snackbarSelectExtFile)),
+          );
         }
+        return;
+      }
+
+      final installResult = await ref
+          .read(extensionProvider.notifier)
+          .installExtensions(extensionPaths);
+
+      if (mounted) {
+        final message = _getInstallResultMessage(installResult);
+        ref.read(extensionProvider.notifier).clearError();
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     }
   }
 
+  String _getInstallResultMessage(ExtensionInstallBatchResult result) {
+    if (result.attempted == 0) {
+      return context.l10n.snackbarSelectExtFile;
+    }
+
+    if (!result.hasFailures) {
+      if (result.installed == 1) {
+        return context.l10n.extensionsInstalledSuccess;
+      }
+      return context.l10n.extensionsInstalledCount(result.installed);
+    }
+
+    if (result.anyInstalled) {
+      return context.l10n.extensionsInstallPartialSuccess(
+        result.installed,
+        result.attempted,
+      );
+    }
+
+    final firstError = result.failures.values.firstOrNull;
+    return _getFriendlyErrorMessage(firstError);
+  }
+
   /// Parse error message to be more user-friendly
   String _getFriendlyErrorMessage(String? error) {
-    if (error == null) return 'Failed to install extension';
+    if (error == null) return context.l10n.snackbarFailedToInstall;
 
     String message = error;
 
@@ -350,12 +374,14 @@ class _ExtensionsPageState extends ConsumerState<ExtensionsPage> {
 
 class _ExtensionItem extends StatelessWidget {
   final Extension extension;
+  final ExtensionHealthStatus? healthStatus;
   final bool showDivider;
   final VoidCallback onTap;
   final ValueChanged<bool> onToggle;
 
   const _ExtensionItem({
     required this.extension,
+    this.healthStatus,
     required this.showDivider,
     required this.onTap,
     required this.onToggle,
@@ -365,6 +391,12 @@ class _ExtensionItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final hasError = extension.status == 'error';
+    final serviceHealthStatus = extension.hasServiceHealth
+        ? healthStatus?.status
+        : null;
+    final serviceHealthColor = serviceHealthStatus == null
+        ? null
+        : _extensionHealthColor(colorScheme, serviceHealthStatus);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -425,11 +457,14 @@ class _ExtensionItem extends StatelessWidget {
                         hasError
                             ? extension.errorMessage ??
                                   context.l10n.extensionsErrorLoading
-                            : 'v${extension.version}',
+                            : serviceHealthStatus == null
+                            ? 'v${extension.version}'
+                            : 'v${extension.version} · ${_extensionHealthLabel(serviceHealthStatus)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: hasError
                               ? colorScheme.error
-                              : colorScheme.onSurfaceVariant,
+                              : serviceHealthColor ??
+                                    colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -453,6 +488,32 @@ class _ExtensionItem extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+Color _extensionHealthColor(ColorScheme colorScheme, String status) {
+  switch (status) {
+    case 'online':
+      return colorScheme.primary;
+    case 'degraded':
+      return colorScheme.tertiary;
+    case 'offline':
+      return colorScheme.error;
+    default:
+      return colorScheme.onSurfaceVariant;
+  }
+}
+
+String _extensionHealthLabel(String status) {
+  switch (status) {
+    case 'online':
+      return 'Online';
+    case 'degraded':
+      return 'Degraded';
+    case 'offline':
+      return 'Offline';
+    default:
+      return 'Unknown';
   }
 }
 

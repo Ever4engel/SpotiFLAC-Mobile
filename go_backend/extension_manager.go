@@ -1004,6 +1004,7 @@ func (m *extensionManager) GetInstalledExtensionsJSON() (string, error) {
 		SearchBehavior         *SearchBehaviorConfig  `json:"search_behavior,omitempty"`
 		TrackMatching          *TrackMatchingConfig   `json:"track_matching,omitempty"`
 		PostProcessing         *PostProcessingConfig  `json:"post_processing,omitempty"`
+		ServiceHealth          []ExtensionHealthCheck `json:"service_health,omitempty"`
 		Capabilities           map[string]interface{} `json:"capabilities,omitempty"`
 	}
 
@@ -1062,6 +1063,7 @@ func (m *extensionManager) GetInstalledExtensionsJSON() (string, error) {
 			SearchBehavior:         ext.Manifest.SearchBehavior,
 			TrackMatching:          ext.Manifest.TrackMatching,
 			PostProcessing:         ext.Manifest.PostProcessing,
+			ServiceHealth:          ext.Manifest.ServiceHealth,
 			Capabilities:           ext.Manifest.Capabilities,
 		}
 	}

@@ -2700,6 +2700,18 @@ abstract class AppLocalizations {
   /// **'Extension installed successfully'**
   String get extensionsInstalledSuccess;
 
+  /// Success message after installing multiple extensions
+  ///
+  /// In en, this message translates to:
+  /// **'{count} extensions installed successfully'**
+  String extensionsInstalledCount(int count);
+
+  /// Message when installing multiple extensions partially succeeds
+  ///
+  /// In en, this message translates to:
+  /// **'Installed {installed} of {attempted} extensions'**
+  String extensionsInstallPartialSuccess(int installed, int attempted);
+
   /// Setting - download provider order
   ///
   /// In en, this message translates to:

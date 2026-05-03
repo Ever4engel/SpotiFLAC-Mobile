@@ -101,6 +101,17 @@ type PostProcessingConfig struct {
 	Hooks   []PostProcessingHook `json:"hooks,omitempty"`
 }
 
+type ExtensionHealthCheck struct {
+	ID              string `json:"id"`
+	Label           string `json:"label,omitempty"`
+	URL             string `json:"url"`
+	Method          string `json:"method,omitempty"`
+	ServiceKey      string `json:"serviceKey,omitempty"`
+	TimeoutMs       int    `json:"timeoutMs,omitempty"`
+	CacheTTLSeconds int    `json:"cacheTtlSeconds,omitempty"`
+	Required        bool   `json:"required,omitempty"`
+}
+
 type ExtensionManifest struct {
 	Name                   string                 `json:"name"`
 	DisplayName            string                 `json:"displayName"`
@@ -121,6 +132,7 @@ type ExtensionManifest struct {
 	URLHandler             *URLHandlerConfig      `json:"urlHandler,omitempty"`
 	TrackMatching          *TrackMatchingConfig   `json:"trackMatching,omitempty"`
 	PostProcessing         *PostProcessingConfig  `json:"postProcessing,omitempty"`
+	ServiceHealth          []ExtensionHealthCheck `json:"serviceHealth,omitempty"`
 	Capabilities           map[string]interface{} `json:"capabilities,omitempty"`
 }
 
@@ -199,6 +211,28 @@ func (m *ExtensionManifest) Validate() error {
 			return &ManifestValidationError{
 				Field:   fmt.Sprintf("settings[%d].action", i),
 				Message: "button type requires action (JS function name)",
+			}
+		}
+	}
+
+	for i, check := range m.ServiceHealth {
+		if strings.TrimSpace(check.ID) == "" {
+			return &ManifestValidationError{
+				Field:   fmt.Sprintf("serviceHealth[%d].id", i),
+				Message: "health check id is required",
+			}
+		}
+		if strings.TrimSpace(check.URL) == "" {
+			return &ManifestValidationError{
+				Field:   fmt.Sprintf("serviceHealth[%d].url", i),
+				Message: "health check url is required",
+			}
+		}
+		method := strings.ToUpper(strings.TrimSpace(check.Method))
+		if method != "" && method != "GET" && method != "HEAD" {
+			return &ManifestValidationError{
+				Field:   fmt.Sprintf("serviceHealth[%d].method", i),
+				Message: "health check method must be GET or HEAD",
 			}
 		}
 	}

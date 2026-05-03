@@ -1893,6 +1893,30 @@
   "@extensionsInstalledSuccess": {
     "description": "Success message after install"
   },
+  "extensionsInstalledCount": "{count} extensions installed successfully",
+  "@extensionsInstalledCount": {
+    "description": "Success message after installing multiple extensions",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "description": "Number of installed extensions"
+      }
+    }
+  },
+  "extensionsInstallPartialSuccess": "Installed {installed} of {attempted} extensions",
+  "@extensionsInstallPartialSuccess": {
+    "description": "Message when installing multiple extensions partially succeeds",
+    "placeholders": {
+      "installed": {
+        "type": "int",
+        "description": "Number of successfully installed extensions"
+      },
+      "attempted": {
+        "type": "int",
+        "description": "Number of selected extensions"
+      }
+    }
+  },
   "extensionsDownloadPriority": "Download Priority",
   "@extensionsDownloadPriority": {
     "description": "Setting - download provider order"

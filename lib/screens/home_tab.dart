@@ -349,8 +349,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
 
     final canonicalFilter = _canonicalSearchFilterId(filter);
 
-    if (currentSearchProvider == null ||
-        currentSearchProvider.isEmpty) {
+    if (currentSearchProvider == null || currentSearchProvider.isEmpty) {
       switch (canonicalFilter) {
         case 'track':
         case 'artist':
@@ -993,13 +992,20 @@ class _HomeTabState extends ConsumerState<HomeTab>
         var skippedDownloadedCount = 0;
 
         if (options.skipDownloaded) {
-          final historyState = ref.read(downloadHistoryProvider);
+          final historyLookups = tracks
+              .map(historyLookupForTrack)
+              .toList(growable: false);
+          final existingHistoryKeys = await ref.read(
+            downloadHistoryBatchExistsProvider(
+              HistoryBatchLookupRequest(historyLookups),
+            ).future,
+          );
           tracksToQueue = [];
-          for (final track in tracks) {
-            final isDownloaded =
-                historyState.isDownloaded(track.id) ||
-                (track.isrc != null &&
-                    historyState.getByIsrc(track.isrc!) != null);
+          for (var i = 0; i < tracks.length; i++) {
+            final track = tracks[i];
+            final isDownloaded = existingHistoryKeys.contains(
+              historyLookups[i].lookupKey,
+            );
             if (isDownloaded) {
               skippedDownloadedCount++;
               continue;
@@ -1120,10 +1126,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
     final extensions = ref.watch(extensionProvider.select((s) => s.extensions));
     final extensionReadiness = ref.watch(
       extensionProvider.select(
-        (s) => (
-          isInitialized: s.isInitialized,
-          error: s.error,
-        ),
+        (s) => (isInitialized: s.isInitialized, error: s.error),
       ),
     );
 
@@ -2339,7 +2342,7 @@ class _HomeTabState extends ConsumerState<HomeTab>
         );
   }
 
-  void _navigateToRecentItem(RecentAccessItem item) {
+  Future<void> _navigateToRecentItem(RecentAccessItem item) async {
     _searchFocusNode.unfocus();
 
     switch (item.type) {
@@ -2407,9 +2410,10 @@ class _HomeTabState extends ConsumerState<HomeTab>
         }
         return;
       case RecentAccessType.track:
-        final historyItem = ref
+        final historyItem = await ref
             .read(downloadHistoryProvider.notifier)
-            .getBySpotifyId(item.id);
+            .getBySpotifyIdAsync(item.id);
+        if (!mounted) return;
         if (historyItem != null) {
           _navigateToMetadataScreen(historyItem);
         } else {

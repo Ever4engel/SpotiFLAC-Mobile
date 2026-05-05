@@ -22,6 +22,9 @@ import 'package:spotiflac_android/utils/file_access.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/utils/artist_utils.dart';
 
+export 'package:spotiflac_android/services/history_database.dart'
+    show HistoryLookupRequest, HistoryBatchLookupRequest;
+
 final _log = AppLogger('DownloadQueue');
 final _historyLog = AppLogger('DownloadHistory');
 
@@ -231,33 +234,41 @@ class DownloadHistoryItem {
 
 class DownloadHistoryState {
   final List<DownloadHistoryItem> items;
+  final int totalCount;
+  final int loadedIndexVersion;
+  final List<DownloadHistoryItem> _lookupItems;
   final Map<String, DownloadHistoryItem> _bySpotifyId;
   final Map<String, DownloadHistoryItem> _byIsrc;
   final Map<String, DownloadHistoryItem> _byTrackArtistKey;
 
-  DownloadHistoryState({this.items = const []})
-    : _bySpotifyId = Map.fromEntries(
-        items
-            .where(
-              (item) => item.spotifyId != null && item.spotifyId!.isNotEmpty,
-            )
-            .map((item) => MapEntry(item.spotifyId!, item)),
-      ),
-      _byIsrc = Map.fromEntries(
-        items
-            .where((item) => item.isrc != null && item.isrc!.isNotEmpty)
-            .map((item) => MapEntry(item.isrc!, item)),
-      ),
-      _byTrackArtistKey = Map.fromEntries(
-        items
-            .map(
-              (item) => MapEntry(
-                _trackArtistKey(item.trackName, item.artistName),
-                item,
-              ),
-            )
-            .where((entry) => entry.key.isNotEmpty),
-      );
+  DownloadHistoryState({
+    this.items = const [],
+    this.totalCount = 0,
+    this.loadedIndexVersion = 0,
+    List<DownloadHistoryItem>? lookupItems,
+  }) : _lookupItems = List.unmodifiable(lookupItems ?? items),
+       _bySpotifyId = Map.fromEntries(
+         (lookupItems ?? items)
+             .where(
+               (item) => item.spotifyId != null && item.spotifyId!.isNotEmpty,
+             )
+             .map((item) => MapEntry(item.spotifyId!, item)),
+       ),
+       _byIsrc = Map.fromEntries(
+         (lookupItems ?? items)
+             .where((item) => item.isrc != null && item.isrc!.isNotEmpty)
+             .map((item) => MapEntry(item.isrc!, item)),
+       ),
+       _byTrackArtistKey = Map.fromEntries(
+         (lookupItems ?? items)
+             .map(
+               (item) => MapEntry(
+                 _trackArtistKey(item.trackName, item.artistName),
+                 item,
+               ),
+             )
+             .where((entry) => entry.key.isNotEmpty),
+       );
 
   static String _trackArtistKey(String trackName, String artistName) {
     final normalizedTrack = trackName.trim().toLowerCase();
@@ -282,12 +293,25 @@ class DownloadHistoryState {
     return _byTrackArtistKey[key];
   }
 
-  DownloadHistoryState copyWith({List<DownloadHistoryItem>? items}) {
-    return DownloadHistoryState(items: items ?? this.items);
+  List<DownloadHistoryItem> get lookupItems => _lookupItems;
+
+  DownloadHistoryState copyWith({
+    List<DownloadHistoryItem>? items,
+    int? totalCount,
+    int? loadedIndexVersion,
+    List<DownloadHistoryItem>? lookupItems,
+  }) {
+    return DownloadHistoryState(
+      items: items ?? this.items,
+      totalCount: totalCount ?? this.totalCount,
+      loadedIndexVersion: loadedIndexVersion ?? this.loadedIndexVersion,
+      lookupItems: lookupItems ?? _lookupItems,
+    );
   }
 }
 
 class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
+  static const int _initialHistoryLoadLimit = 100;
   static const int _safRepairBatchSize = 20;
   static const int _safRepairMaxPerLaunch = 60;
   static const int _orphanCleanupMaxPerLaunch = 80;
@@ -332,13 +356,22 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         }
       }
 
-      final jsonList = await _db.getAll();
+      final countFuture = _db.getCount();
+      final jsonList = await _db.getAll(limit: _initialHistoryLoadLimit);
       final items = jsonList
           .map((e) => DownloadHistoryItem.fromJson(e))
           .toList();
+      final totalCount = await countFuture;
 
-      state = state.copyWith(items: items);
-      _historyLog.i('Loaded ${items.length} items from SQLite database');
+      state = state.copyWith(
+        items: items,
+        totalCount: totalCount,
+        loadedIndexVersion: state.loadedIndexVersion + 1,
+        lookupItems: items,
+      );
+      _historyLog.i(
+        'Loaded ${items.length}/$totalCount recent history items from SQLite database',
+      );
       _scheduleStartupMaintenance(items);
     } catch (e, stack) {
       _historyLog.e('Failed to load history from database: $e', e, stack);
@@ -543,7 +576,11 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
 
       if (changed) {
         await _db.upsertBatch(persistedUpdates);
-        state = state.copyWith(items: updatedItems);
+        state = state.copyWith(
+          items: updatedItems,
+          loadedIndexVersion: state.loadedIndexVersion + 1,
+          lookupItems: _lookupItemsWithUpdates(updatedItems),
+        );
         _historyLog.i(
           'SAF repair pass: verified=$verifiedCount, repaired=$repairedCount, checked=${selectedIndexes.length}',
         );
@@ -813,7 +850,11 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
 
       if (persistedUpdates.isNotEmpty && updatedItems != null) {
         await _db.upsertBatch(persistedUpdates);
-        state = state.copyWith(items: updatedItems);
+        state = state.copyWith(
+          items: updatedItems,
+          loadedIndexVersion: state.loadedIndexVersion + 1,
+          lookupItems: _lookupItemsWithUpdates(updatedItems),
+        );
       }
 
       await _writeStartupCursor(
@@ -837,7 +878,13 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     await _loadFromDatabase();
   }
 
-  DownloadHistoryItem _putInMemoryHistory(DownloadHistoryItem item) {
+  void _bumpHistoryRevision() {
+    state = state.copyWith(loadedIndexVersion: state.loadedIndexVersion + 1);
+  }
+
+  Future<DownloadHistoryItem> _putInMemoryHistory(
+    DownloadHistoryItem item,
+  ) async {
     DownloadHistoryItem? existing;
     if (item.spotifyId != null && item.spotifyId!.isNotEmpty) {
       existing = state.getBySpotifyId(item.spotifyId!);
@@ -845,10 +892,31 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     if (existing == null && item.isrc != null && item.isrc!.isNotEmpty) {
       existing = state.getByIsrc(item.isrc!);
     }
+    if (existing == null) {
+      final json = await _db.findExisting(
+        spotifyId: item.spotifyId,
+        isrc: item.isrc,
+      );
+      if (json != null) {
+        existing = DownloadHistoryItem.fromJson(json);
+      }
+    }
+    if (existing == null) {
+      final json = await _db.findByTrackAndArtist(
+        item.trackName,
+        item.artistName,
+      );
+      if (json != null) {
+        existing = DownloadHistoryItem.fromJson(json);
+      }
+    }
 
+    final incomingItem = existing != null && existing.id != item.id
+        ? DownloadHistoryItem.fromJson(item.toJson()..['id'] = existing.id)
+        : item;
     final mergedItem = existing == null
-        ? item
-        : item.copyWith(
+        ? incomingItem
+        : incomingItem.copyWith(
             trackNumber: item.trackNumber ?? existing.trackNumber,
             totalTracks: item.totalTracks ?? existing.totalTracks,
             discNumber: item.discNumber ?? existing.discNumber,
@@ -872,43 +940,103 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
           .where((i) => i.id != existing!.id)
           .toList();
       updatedItems.insert(0, mergedItem);
-      state = state.copyWith(items: updatedItems);
+      final updatedLookupItems = state.lookupItems
+          .where((i) => i.id != existing!.id)
+          .toList(growable: false);
+      state = state.copyWith(
+        items: updatedItems,
+        lookupItems: [mergedItem, ...updatedLookupItems],
+      );
       _historyLog.d('Updated existing history entry: ${mergedItem.trackName}');
     } else {
-      state = state.copyWith(items: [mergedItem, ...state.items]);
+      state = state.copyWith(
+        items: [mergedItem, ...state.items],
+        totalCount: state.totalCount + 1,
+        lookupItems: [mergedItem, ...state.lookupItems],
+      );
       _historyLog.d('Added new history entry: ${mergedItem.trackName}');
     }
     return mergedItem;
   }
 
+  List<DownloadHistoryItem> _lookupItemsWithUpdates(
+    Iterable<DownloadHistoryItem> updates, {
+    Set<String> deletedIds = const <String>{},
+  }) {
+    final byId = <String, DownloadHistoryItem>{
+      for (final item in state.lookupItems)
+        if (!deletedIds.contains(item.id)) item.id: item,
+    };
+    for (final item in updates) {
+      if (!deletedIds.contains(item.id)) {
+        byId[item.id] = item;
+      }
+    }
+    return byId.values.toList(growable: false);
+  }
+
   void addToHistory(DownloadHistoryItem item) {
-    final mergedItem = _putInMemoryHistory(item);
-    _db.upsert(mergedItem.toJson()).catchError((Object e) {
-      _historyLog.e('Failed to save to database: $e');
-    });
+    unawaited(
+      () async {
+        final mergedItem = await _putInMemoryHistory(item);
+        await _db.upsert(mergedItem.toJson());
+        _bumpHistoryRevision();
+      }().catchError((Object e, StackTrace stack) {
+        _historyLog.e('Failed to save to database: $e', e, stack);
+      }),
+    );
   }
 
   void adoptNativeHistoryItem(DownloadHistoryItem item) {
-    _putInMemoryHistory(item);
+    unawaited(
+      () async {
+        final mergedItem = await _putInMemoryHistory(item);
+        await _db.upsert(mergedItem.toJson());
+        _bumpHistoryRevision();
+      }().catchError((Object e, StackTrace stack) {
+        _historyLog.e('Failed to adopt native history item: $e', e, stack);
+      }),
+    );
   }
 
   void removeFromHistory(String id) {
     state = state.copyWith(
       items: state.items.where((item) => item.id != id).toList(),
+      totalCount: state.totalCount > 0
+          ? state.totalCount - 1
+          : state.totalCount,
+      lookupItems: state.lookupItems
+          .where((item) => item.id != id)
+          .toList(growable: false),
     );
-    _db.deleteById(id).catchError((Object e) {
-      _historyLog.e('Failed to delete from database: $e');
-    });
+    _db
+        .deleteById(id)
+        .catchError((Object e) {
+          _historyLog.e('Failed to delete from database: $e');
+        })
+        .then((_) {
+          _bumpHistoryRevision();
+        });
   }
 
   void removeBySpotifyId(String spotifyId) {
     state = state.copyWith(
       items: state.items.where((item) => item.spotifyId != spotifyId).toList(),
+      lookupItems: state.lookupItems
+          .where((item) => item.spotifyId != spotifyId)
+          .toList(growable: false),
     );
-    _db.deleteBySpotifyId(spotifyId).catchError((Object e) {
-      _historyLog.e('Failed to delete from database: $e');
-    });
-    _historyLog.d('Removed item with spotifyId: $spotifyId');
+    unawaited(
+      () async {
+        final deleted = await _db.deleteBySpotifyId(spotifyId);
+        final totalCount = await _db.getCount();
+        state = state.copyWith(totalCount: totalCount);
+        _bumpHistoryRevision();
+        _historyLog.d('Removed $deleted item(s) with spotifyId: $spotifyId');
+      }().catchError((Object e, StackTrace stack) {
+        _historyLog.e('Failed to delete from database: $e', e, stack);
+      }),
+    );
   }
 
   DownloadHistoryItem? getBySpotifyId(String spotifyId) {
@@ -928,6 +1056,63 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     return DownloadHistoryItem.fromJson(json);
   }
 
+  Future<DownloadHistoryItem?> getByIsrcAsync(String isrc) async {
+    final inMemory = state.getByIsrc(isrc);
+    if (inMemory != null) return inMemory;
+
+    final json = await _db.getByIsrc(isrc);
+    if (json == null) return null;
+    return DownloadHistoryItem.fromJson(json);
+  }
+
+  Future<DownloadHistoryItem?> findByTrackAndArtistAsync(
+    String trackName,
+    String artistName,
+  ) async {
+    final inMemory = state.findByTrackAndArtist(trackName, artistName);
+    if (inMemory != null) return inMemory;
+
+    final json = await _db.findByTrackAndArtist(trackName, artistName);
+    if (json == null) return null;
+    return DownloadHistoryItem.fromJson(json);
+  }
+
+  Future<DownloadHistoryItem?> findExistingTrackAsync(
+    HistoryLookupRequest request,
+  ) async {
+    final bySpotifyId = state.getBySpotifyId(request.spotifyId);
+    if (bySpotifyId != null) return bySpotifyId;
+
+    final isrc = request.isrc?.trim();
+    if (isrc != null && isrc.isNotEmpty) {
+      final byIsrc = state.getByIsrc(isrc);
+      if (byIsrc != null) return byIsrc;
+    }
+
+    final byTrackArtist = state.findByTrackAndArtist(
+      request.trackName,
+      request.artistName,
+    );
+    if (byTrackArtist != null) return byTrackArtist;
+
+    final json = await _db.findExistingTrack(request);
+    if (json == null) return null;
+    return DownloadHistoryItem.fromJson(json);
+  }
+
+  Future<({DownloadHistoryItem item, int index})?> _historyItemForUpdate(
+    String id,
+  ) async {
+    final index = state.items.indexWhere((item) => item.id == id);
+    if (index >= 0) {
+      return (item: state.items[index], index: index);
+    }
+
+    final json = await _db.getById(id);
+    if (json == null) return null;
+    return (item: DownloadHistoryItem.fromJson(json), index: -1);
+  }
+
   Future<void> updateAudioMetadataForItem({
     required String id,
     String? quality,
@@ -940,10 +1125,15 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     int? duration,
     String? composer,
   }) async {
-    final index = state.items.indexWhere((item) => item.id == id);
-    if (index < 0) return;
+    final target = await _historyItemForUpdate(id);
+    if (target == null) {
+      _historyLog.w(
+        'Cannot update audio metadata for missing history item: $id',
+      );
+      return;
+    }
 
-    final current = state.items[index];
+    final current = target.item;
     final updated = current.copyWith(
       quality: quality,
       bitDepth: bitDepth,
@@ -968,10 +1158,15 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       return;
     }
 
-    final updatedItems = [...state.items];
-    updatedItems[index] = updated;
-    state = state.copyWith(items: updatedItems);
+    final updatedItems = target.index >= 0
+        ? ([...state.items]..[target.index] = updated)
+        : state.items;
+    state = state.copyWith(
+      items: updatedItems,
+      lookupItems: _lookupItemsWithUpdates([updated]),
+    );
     await _db.upsert(updated.toJson());
+    _bumpHistoryRevision();
   }
 
   Future<void> updateMetadataForItem({
@@ -991,10 +1186,13 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     String? label,
     String? copyright,
   }) async {
-    final index = state.items.indexWhere((item) => item.id == id);
-    if (index < 0) return;
+    final target = await _historyItemForUpdate(id);
+    if (target == null) {
+      _historyLog.w('Cannot update metadata for missing history item: $id');
+      return;
+    }
 
-    final current = state.items[index];
+    final current = target.item;
     final updated = current.copyWith(
       trackName: trackName,
       artistName: artistName,
@@ -1012,10 +1210,15 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
       copyright: copyright,
     );
 
-    final updatedItems = [...state.items];
-    updatedItems[index] = updated;
-    state = state.copyWith(items: updatedItems);
+    final updatedItems = target.index >= 0
+        ? ([...state.items]..[target.index] = updated)
+        : state.items;
+    state = state.copyWith(
+      items: updatedItems,
+      lookupItems: _lookupItemsWithUpdates([updated]),
+    );
     await _db.upsert(updated.toJson());
+    _bumpHistoryRevision();
   }
 
   static const _audioExtensions = [
@@ -1126,7 +1329,15 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
         updatedItems.add(item);
       }
     }
-    state = state.copyWith(items: updatedItems);
+    state = state.copyWith(
+      items: updatedItems,
+      loadedIndexVersion: state.loadedIndexVersion + 1,
+      lookupItems: _lookupItemsWithUpdates(
+        updatedItems,
+        deletedIds: deletedSet,
+      ),
+      totalCount: max(0, state.totalCount - deletedSet.length),
+    );
   }
 
   Future<int> _cleanupOrphanedDownloadsIncremental({
@@ -1224,10 +1435,15 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
   }
 
   void clearHistory() {
-    state = DownloadHistoryState();
-    _db.clearAll().catchError((Object e) {
-      _historyLog.e('Failed to clear database: $e');
-    });
+    state = DownloadHistoryState(loadedIndexVersion: state.loadedIndexVersion);
+    _db
+        .clearAll()
+        .then((_) {
+          _bumpHistoryRevision();
+        })
+        .catchError((Object e) {
+          _historyLog.e('Failed to clear database: $e');
+        });
   }
 
   Future<int> getDatabaseCount() async {
@@ -1239,6 +1455,121 @@ final downloadHistoryProvider =
     NotifierProvider<DownloadHistoryNotifier, DownloadHistoryState>(
       DownloadHistoryNotifier.new,
     );
+
+class DownloadHistoryPageRequest {
+  final int limit;
+  final int offset;
+
+  const DownloadHistoryPageRequest({this.limit = 100, this.offset = 0});
+
+  @override
+  bool operator ==(Object other) =>
+      other is DownloadHistoryPageRequest &&
+      other.limit == limit &&
+      other.offset == offset;
+
+  @override
+  int get hashCode => Object.hash(limit, offset);
+}
+
+final downloadHistoryPageProvider =
+    FutureProvider.family<
+      List<DownloadHistoryItem>,
+      DownloadHistoryPageRequest
+    >((ref, request) async {
+      ref.watch(
+        downloadHistoryProvider.select((state) => state.loadedIndexVersion),
+      );
+      final rows = await HistoryDatabase.instance.getAll(
+        limit: request.limit,
+        offset: request.offset,
+      );
+      return rows.map(DownloadHistoryItem.fromJson).toList(growable: false);
+    });
+
+class DownloadHistoryGroupedCounts {
+  final int albumCount;
+  final int singleTrackCount;
+
+  const DownloadHistoryGroupedCounts({
+    required this.albumCount,
+    required this.singleTrackCount,
+  });
+}
+
+final downloadHistoryGroupedCountsProvider =
+    FutureProvider<DownloadHistoryGroupedCounts>((ref) async {
+      ref.watch(
+        downloadHistoryProvider.select((state) => state.loadedIndexVersion),
+      );
+      final counts = await HistoryDatabase.instance.getGroupedCounts();
+      return DownloadHistoryGroupedCounts(
+        albumCount: counts['albums'] ?? 0,
+        singleTrackCount: counts['singles'] ?? 0,
+      );
+    });
+
+HistoryLookupRequest historyLookupForTrack(Track track) {
+  return HistoryLookupRequest(
+    spotifyId: track.id,
+    isrc: track.isrc,
+    trackName: track.name,
+    artistName: track.artistName,
+  );
+}
+
+final downloadHistoryExistsProvider =
+    FutureProvider.family<bool, HistoryLookupRequest>((ref, request) async {
+      ref.watch(
+        downloadHistoryProvider.select((state) => state.loadedIndexVersion),
+      );
+      return HistoryDatabase.instance.existsTrack(request);
+    });
+
+final downloadHistoryBatchExistsProvider =
+    FutureProvider.family<Set<String>, HistoryBatchLookupRequest>((
+      ref,
+      request,
+    ) async {
+      ref.watch(
+        downloadHistoryProvider.select((state) => state.loadedIndexVersion),
+      );
+      return HistoryDatabase.instance.existingTrackKeys(request.tracks);
+    });
+
+class DownloadedAlbumTracksRequest {
+  final String albumName;
+  final String artistName;
+
+  const DownloadedAlbumTracksRequest({
+    required this.albumName,
+    required this.artistName,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is DownloadedAlbumTracksRequest &&
+      other.albumName == albumName &&
+      other.artistName == artistName;
+
+  @override
+  int get hashCode => Object.hash(albumName, artistName);
+}
+
+final downloadedAlbumTracksProvider =
+    FutureProvider.family<
+      List<DownloadHistoryItem>,
+      DownloadedAlbumTracksRequest
+    >((ref, request) async {
+      ref.watch(
+        downloadHistoryProvider.select((state) => state.loadedIndexVersion),
+      );
+      final rows = await HistoryDatabase.instance.getAlbumTracks(
+        request.albumName,
+        request.artistName,
+      );
+      return rows.map(DownloadHistoryItem.fromJson).toList(growable: false);
+    });
 
 class DownloadQueueState {
   static const Object _noChange = Object();
@@ -7560,9 +7891,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
         final historyNotifier = ref.read(downloadHistoryProvider.notifier);
         final existingInHistory =
-            historyNotifier.getBySpotifyId(trackToDownload.id) ??
+            await historyNotifier.getBySpotifyIdAsync(trackToDownload.id) ??
             (trackToDownload.isrc != null
-                ? historyNotifier.getByIsrc(trackToDownload.isrc!)
+                ? await historyNotifier.getByIsrcAsync(trackToDownload.isrc!)
                 : null);
 
         if (wasExisting && existingInHistory != null) {

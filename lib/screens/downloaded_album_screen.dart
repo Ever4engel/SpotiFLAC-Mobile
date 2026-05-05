@@ -356,10 +356,25 @@ class _DownloadedAlbumScreenState extends ConsumerState<DownloadedAlbumScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    final allHistoryItems = ref.watch(
-      downloadHistoryProvider.select((s) => s.items),
+    final tracksValue = ref.watch(
+      downloadedAlbumTracksProvider(
+        DownloadedAlbumTracksRequest(
+          albumName: widget.albumName,
+          artistName: widget.artistName,
+        ),
+      ),
     );
-    final tracks = _getAlbumTracks(allHistoryItems);
+    final tracks = tracksValue.maybeWhen(
+      data: (items) => _getAlbumTracks(items),
+      orElse: () => const <DownloadHistoryItem>[],
+    );
+
+    if (tracks.isEmpty && tracksValue.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.albumName)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     if (tracks.isEmpty) {
       return Scaffold(

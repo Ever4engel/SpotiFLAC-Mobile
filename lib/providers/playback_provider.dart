@@ -84,7 +84,10 @@ class PlaybackController extends Notifier<PlaybackState> {
       return localItem.filePath;
     }
 
-    final historyItem = _findDownloadHistoryItemForTrack(track, historyState);
+    final historyItem = await _findDownloadHistoryItemForTrack(
+      track,
+      historyState,
+    );
     if (historyItem != null) {
       if (await fileExists(historyItem.filePath)) {
         return historyItem.filePath;
@@ -114,14 +117,21 @@ class PlaybackController extends Notifier<PlaybackState> {
         );
   }
 
-  DownloadHistoryItem? _findDownloadHistoryItemForTrack(
+  Future<DownloadHistoryItem?> _findDownloadHistoryItemForTrack(
     Track track,
     DownloadHistoryState historyState,
-  ) {
+  ) async {
+    final historyNotifier = ref.read(downloadHistoryProvider.notifier);
     for (final candidateId in _spotifyIdLookupCandidates(track.id)) {
       final bySpotifyId = historyState.getBySpotifyId(candidateId);
       if (bySpotifyId != null) {
         return bySpotifyId;
+      }
+      final bySpotifyIdAsync = await historyNotifier.getBySpotifyIdAsync(
+        candidateId,
+      );
+      if (bySpotifyIdAsync != null) {
+        return bySpotifyIdAsync;
       }
     }
 
@@ -131,9 +141,16 @@ class PlaybackController extends Notifier<PlaybackState> {
       if (byIsrc != null) {
         return byIsrc;
       }
+      final byIsrcAsync = await historyNotifier.getByIsrcAsync(isrc);
+      if (byIsrcAsync != null) {
+        return byIsrcAsync;
+      }
     }
 
-    return historyState.findByTrackAndArtist(track.name, track.artistName);
+    return historyNotifier.findByTrackAndArtistAsync(
+      track.name,
+      track.artistName,
+    );
   }
 
   List<String> _spotifyIdLookupCandidates(String rawId) {

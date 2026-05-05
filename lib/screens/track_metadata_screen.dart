@@ -3,9 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:spotiflac_android/services/cover_cache_manager.dart';
 import 'package:spotiflac_android/services/history_database.dart';
 import 'package:spotiflac_android/services/library_database.dart';
 import 'package:spotiflac_android/utils/file_access.dart';
@@ -25,6 +23,7 @@ import 'package:spotiflac_android/utils/mime_utils.dart';
 import 'package:spotiflac_android/utils/image_cache_utils.dart';
 import 'package:spotiflac_android/utils/string_utils.dart';
 import 'package:spotiflac_android/widgets/audio_analysis_widget.dart';
+import 'package:spotiflac_android/widgets/cached_cover_image.dart';
 
 part 'track_metadata_edit_sheet.dart';
 
@@ -46,6 +45,7 @@ class TrackMetadataScreen extends ConsumerStatefulWidget {
   final List<DownloadHistoryItem>? historyNavigationItems;
   final List<LocalLibraryItem>? localNavigationItems;
   final int? navigationIndex;
+  final String? coverHeroTag;
 
   const TrackMetadataScreen({
     super.key,
@@ -54,6 +54,7 @@ class TrackMetadataScreen extends ConsumerStatefulWidget {
     this.historyNavigationItems,
     this.localNavigationItems,
     this.navigationIndex,
+    this.coverHeroTag,
   }) : assert(
          item != null || localItem != null,
          'Either item or localItem must be provided',
@@ -684,7 +685,8 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
   String get _filePath =>
       _isLocalItem ? _localLibraryItem!.filePath : _downloadItem!.filePath;
   String get _coverHeroTag =>
-      _isLocalItem ? 'cover_lib_$_itemId' : 'cover_$_itemId';
+      widget.coverHeroTag ??
+      (_isLocalItem ? 'cover_lib_$_itemId' : 'cover_$_itemId');
   String? get _coverUrl =>
       _isLocalItem ? null : normalizeRemoteHttpUrl(_downloadItem!.coverUrl);
   String? get _localCoverPath =>
@@ -1133,11 +1135,10 @@ class _TrackMetadataScreenState extends ConsumerState<TrackMetadataScreen> {
             errorBuilder: (_, _, _) => Container(color: colorScheme.surface),
           )
         : _coverUrl != null
-        ? CachedNetworkImage(
+        ? CachedCoverImage(
             imageUrl: _coverUrl!,
             fit: BoxFit.cover,
             memCacheWidth: cacheWidth,
-            cacheManager: CoverCacheManager.instance,
             placeholder: (_, _) => Container(color: colorScheme.surface),
             errorWidget: (_, _, _) => Container(color: colorScheme.surface),
           )

@@ -58,6 +58,7 @@ class QueueTab extends ConsumerStatefulWidget {
 }
 
 class _QueueTabState extends ConsumerState<QueueTab> {
+  static const int _libraryPageSize = 300;
   final _FileExistsListenableCache _fileExistsCache =
       _FileExistsListenableCache();
   static const int _maxSearchIndexCacheSize = 4000;
@@ -147,6 +148,8 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   String _sortMode = 'latest';
   double _libraryGridExtent = _libraryGridDefaultExtent;
   double? _libraryGridScaleStartExtent;
+  int _libraryPageLimit = _libraryPageSize;
+  bool _libraryPageLoadScheduled = false;
 
   double _effectiveTextScale() {
     final textScale = MediaQuery.textScalerOf(context).scale(1.0);
@@ -217,7 +220,10 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     final normalized = value.trim().toLowerCase();
     _searchDebounce = Timer(const Duration(milliseconds: 180), () {
       if (!mounted || _searchQuery == normalized) return;
-      setState(() => _searchQuery = normalized);
+      setState(() {
+        _searchQuery = normalized;
+        _libraryPageLimit = _libraryPageSize;
+      });
       _requestFilterRefresh();
     });
   }
@@ -225,8 +231,44 @@ class _QueueTabState extends ConsumerState<QueueTab> {
   void _clearSearch() {
     _searchDebounce?.cancel();
     if (_searchQuery.isEmpty) return;
-    setState(() => _searchQuery = '');
+    setState(() {
+      _searchQuery = '';
+      _libraryPageLimit = _libraryPageSize;
+    });
     _requestFilterRefresh();
+  }
+
+  void _loadMoreLibraryItems({required bool hasMoreLibrary}) {
+    if (_libraryPageLoadScheduled) return;
+    _libraryPageLoadScheduled = true;
+    setState(() {
+      if (hasMoreLibrary) _libraryPageLimit += _libraryPageSize;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _libraryPageLoadScheduled = false;
+    });
+  }
+
+  bool _handleLibraryScrollNotification({
+    required ScrollNotification notification,
+    required String filterMode,
+    required bool hasMoreLibrary,
+    required bool isPageLoading,
+  }) {
+    if (isPageLoading || !hasMoreLibrary || notification.depth != 0) {
+      return false;
+    }
+
+    final metrics = notification.metrics;
+    if (metrics.maxScrollExtent <= 0) return false;
+    final threshold = metrics.maxScrollExtent * 0.7;
+    final nearEnd =
+        metrics.pixels >= threshold ||
+        metrics.extentAfter <= metrics.viewportDimension * 1.5;
+    if (!nearEnd) return false;
+
+    _loadMoreLibraryItems(hasMoreLibrary: hasMoreLibrary);
+    return false;
   }
 
   void _invalidateFilterContentCache() {
@@ -237,6 +279,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     _filterCacheCollectionState = null;
   }
 
+  // ignore: unused_element
   void _prepareFilterContentCache({
     required List<DownloadHistoryItem> allHistoryItems,
     required _HistoryStats historyStats,
@@ -272,6 +315,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     _filterCacheSortMode = _sortMode;
   }
 
+  // ignore: unused_element
   void _ensureHistoryCaches(
     List<DownloadHistoryItem> items,
     List<LocalLibraryItem> localItems,
@@ -1252,6 +1296,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       _filterFormat = null;
       _filterMetadata = null;
       _sortMode = 'latest';
+      _libraryPageLimit = _libraryPageSize;
       _unifiedItemsCache.clear();
       _invalidateFilterContentCache();
     });
@@ -1844,6 +1889,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                                   _filterFormat = tempFormat;
                                   _filterMetadata = tempMetadata;
                                   _sortMode = tempSortMode;
+                                  _libraryPageLimit = _libraryPageSize;
                                   _unifiedItemsCache.clear();
                                   _invalidateFilterContentCache();
                                 });
@@ -1971,6 +2017,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
           item: item,
           historyNavigationItems: navigationItems,
           navigationIndex: navigationIndex,
+          coverHeroTag: 'cover_lib_dl_${item.id}',
         ),
       ),
     );
@@ -2002,6 +2049,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
           localItem: item,
           localNavigationItems: navigationItems,
           navigationIndex: navigationIndex,
+          coverHeroTag: 'cover_lib_local_${item.id}',
         ),
       ),
     ).then((_) => _searchFocusNode.unfocus());
@@ -2059,14 +2107,23 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     );
   }
 
-  void _navigateToLocalAlbum(_GroupedLocalAlbum album) {
+  Future<void> _navigateToLocalAlbum(_GroupedLocalAlbum album) async {
+    var tracks = album.tracks;
+    if (tracks.isEmpty && album.displayTrackCount > 0) {
+      final rows = await LibraryDatabase.instance.getQueueLocalAlbumTracks(
+        album.albumName,
+        album.artistName,
+      );
+      tracks = rows.map(LocalLibraryItem.fromJson).toList(growable: false);
+      if (!mounted) return;
+    }
     _navigateWithUnfocus(
       slidePageRoute(
         page: LocalAlbumScreen(
           albumName: album.albumName,
           artistName: album.artistName,
           coverPath: album.coverPath,
-          tracks: album.tracks,
+          tracks: tracks,
         ),
       ),
     );
@@ -2362,20 +2419,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     final hasQueueItems = ref.watch(
       downloadQueueLookupProvider.select((lookup) => lookup.itemIds.isNotEmpty),
     );
-    final allHistoryItems = ref.watch(
-      downloadHistoryProvider.select((s) => s.items),
-    );
     final localLibraryEnabled = ref.watch(
       settingsProvider.select((s) => s.localLibraryEnabled),
     );
-    final localLibraryItems = localLibraryEnabled
-        ? ref
-              .watch(localLibraryAllItemsProvider)
-              .maybeWhen(
-                data: (items) => items,
-                orElse: () => const <LocalLibraryItem>[],
-              )
-        : const <LocalLibraryItem>[];
     // Watch with selector on key fields to reduce unnecessary rebuilds.
     // LibraryCollectionsState doesn't implement == so watching without
     // selector rebuilds on every provider notification.
@@ -2392,20 +2438,6 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       ),
     );
     final collectionState = ref.read(libraryCollectionsProvider);
-    final historyStats = ref.watch(_queueHistoryStatsProvider);
-    final filteredGrouped = ref.watch(
-      _queueFilteredAlbumsProvider(
-        _QueueGroupedAlbumFilterRequest(
-          searchQuery: _searchQuery,
-          filterSource: _filterSource,
-          filterQuality: _filterQuality,
-          filterFormat: _filterFormat,
-          filterMetadata: _filterMetadata,
-          sortMode: _sortMode,
-        ),
-      ),
-    );
-    _ensureHistoryCaches(allHistoryItems, localLibraryItems, historyStats);
     final historyViewMode = ref.watch(
       settingsProvider.select((s) => s.historyViewMode),
     );
@@ -2414,32 +2446,77 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     );
     final colorScheme = Theme.of(context).colorScheme;
     final topPadding = normalizedHeaderTopPadding(context);
-    final filteredGroupedAlbums = filteredGrouped.albums;
-    final filteredGroupedLocalAlbums = filteredGrouped.localAlbums;
-    final albumCount = historyStats.totalAlbumCount;
-    final singleCount = historyStats.totalSingleTracks;
-    _prepareFilterContentCache(
-      allHistoryItems: allHistoryItems,
-      historyStats: historyStats,
-      localLibraryItems: localLibraryItems,
-      collectionState: collectionState,
+    final countsRequest = _QueueLibraryCountsRequest(
+      searchQuery: _searchQuery,
+      filterSource: _filterSource,
+      filterQuality: _filterQuality,
+      filterFormat: _filterFormat,
+      filterMetadata: _filterMetadata,
+      localLibraryEnabled: localLibraryEnabled,
+    );
+    final countsValue = ref.watch(_queueLibraryCountsProvider(countsRequest));
+    final queueCounts = countsValue.maybeWhen(
+      data: (counts) => counts,
+      orElse: () => const QueueLibraryCounts(
+        allTrackCount: 0,
+        albumCount: 0,
+        singleTrackCount: 0,
+      ),
     );
 
-    _FilterContentData getFilterData(String filterMode) {
-      return _filterContentDataCache.putIfAbsent(
-        filterMode,
-        () => _computeFilterContentData(
+    _QueueLibraryPageRequest pageRequest(String filterMode) =>
+        _QueueLibraryPageRequest(
           filterMode: filterMode,
-          allHistoryItems: allHistoryItems,
-          filteredGroupedAlbums: filteredGroupedAlbums,
-          filteredGroupedLocalAlbums: filteredGroupedLocalAlbums,
-          albumCounts: historyStats.albumCounts,
-          localAlbumCounts: historyStats.localAlbumCounts,
-          localLibraryItems: localLibraryItems,
-          collectionState: collectionState,
-        ),
+          limit: _libraryPageLimit,
+          searchQuery: _searchQuery,
+          filterSource: _filterSource,
+          filterQuality: _filterQuality,
+          filterFormat: _filterFormat,
+          filterMetadata: _filterMetadata,
+          sortMode: _sortMode,
+          localLibraryEnabled: localLibraryEnabled,
+        );
+
+    final pageValues = <String, AsyncValue<_QueueLibraryPageData>>{
+      for (final mode in _filterModes)
+        mode: ref.watch(_queueLibraryPageProvider(pageRequest(mode))),
+    };
+
+    _QueueLibraryPageData pageData(String filterMode) =>
+        pageValues[filterMode]?.maybeWhen(
+          data: (data) => data,
+          orElse: () => const _QueueLibraryPageData(),
+        ) ??
+        const _QueueLibraryPageData();
+
+    _FilterContentData getFilterData(String filterMode) {
+      return pageData(filterMode).toFilterContentData(
+        collectionState,
+        totalTrackCount: switch (filterMode) {
+          'singles' => queueCounts.singleTrackCount,
+          'albums' => 0,
+          _ => queueCounts.allTrackCount,
+        },
+        totalAlbumCount: filterMode == 'albums' ? queueCounts.albumCount : null,
       );
     }
+
+    final currentPageData = pageData(historyFilterMode);
+    final currentLoadedCount = historyFilterMode == 'albums'
+        ? currentPageData.groupedAlbums.length +
+              currentPageData.groupedLocalAlbums.length
+        : currentPageData.items.length;
+    final currentTotalCount = switch (historyFilterMode) {
+      'albums' => queueCounts.albumCount,
+      'singles' => queueCounts.singleTrackCount,
+      _ => queueCounts.allTrackCount,
+    };
+    final hasMoreLibrary = currentLoadedCount < currentTotalCount;
+    final isLibraryPageLoading =
+        countsValue.isLoading ||
+        (pageValues[historyFilterMode]?.isLoading ?? false);
+    final hasAnyLibraryItems =
+        queueCounts.allTrackCount > 0 || queueCounts.albumCount > 0;
 
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
     final selectionItems = getFilterData(
@@ -2519,9 +2596,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                   ),
                 ),
 
-                if (allHistoryItems.isNotEmpty ||
-                    hasQueueItems ||
-                    localLibraryItems.isNotEmpty)
+                if (hasAnyLibraryItems || hasQueueItems)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -2586,7 +2661,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
 
                 if (hasQueueItems) _buildQueueItemsSliver(context, colorScheme),
 
-                if (allHistoryItems.isNotEmpty || localLibraryItems.isNotEmpty)
+                if (hasAnyLibraryItems)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -2596,20 +2671,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                           int filteredAlbumCount;
                           int filteredSingleCount;
 
-                          if (_activeFilterCount == 0 && _searchQuery.isEmpty) {
-                            filteredAllCount =
-                                allHistoryItems.length +
-                                localLibraryItems.length;
-                            filteredAlbumCount = albumCount;
-                            filteredSingleCount = singleCount;
-                          } else {
-                            final allData = getFilterData('all');
-                            final albumsData = getFilterData('albums');
-                            final singlesData = getFilterData('singles');
-                            filteredAllCount = allData.totalTrackCount;
-                            filteredAlbumCount = albumsData.totalAlbumCount;
-                            filteredSingleCount = singlesData.totalTrackCount;
-                          }
+                          filteredAllCount = queueCounts.allTrackCount;
+                          filteredAlbumCount = queueCounts.albumCount;
+                          filteredSingleCount = queueCounts.singleTrackCount;
 
                           return SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
@@ -2664,8 +2728,11 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                     historyViewMode: historyViewMode,
                     hasQueueItems: hasQueueItems,
                     filterData: filterData,
-                    localLibraryItems: localLibraryItems,
                     collectionState: collectionState,
+                    hasMoreLibrary: filterMode == historyFilterMode
+                        ? hasMoreLibrary
+                        : false,
+                    isPageLoading: isLibraryPageLoading,
                   );
                 },
               ),
@@ -2738,6 +2805,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     return merged;
   }
 
+  // ignore: unused_element
   _FilterContentData _computeFilterContentData({
     required String filterMode,
     required List<DownloadHistoryItem> allHistoryItems,
@@ -3259,8 +3327,9 @@ class _QueueTabState extends ConsumerState<QueueTab> {
     required String historyViewMode,
     required bool hasQueueItems,
     required _FilterContentData filterData,
-    required List<LocalLibraryItem> localLibraryItems,
     required LibraryCollectionsState collectionState,
+    required bool hasMoreLibrary,
+    required bool isPageLoading,
   }) {
     final historyItems = filterData.historyItems;
     final showFilteringIndicator = filterData.showFilteringIndicator;
@@ -3345,7 +3414,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         if (filteredGroupedAlbums.isEmpty &&
             filteredGroupedLocalAlbums.isEmpty &&
             filterMode == 'albums' &&
-            (historyItems.isNotEmpty || localLibraryItems.isNotEmpty))
+            (historyItems.isNotEmpty || unifiedItems.isNotEmpty))
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -3697,20 +3766,51 @@ class _QueueTabState extends ConsumerState<QueueTab> {
             hasScrollBody: false,
             child: _buildEmptyState(context, colorScheme, filterMode),
           )
-        else
+        else if (isPageLoading && filterMode != 'albums')
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+        if (hasQueueItems ||
+            totalTrackCount > 0 ||
+            (filterMode == 'albums' &&
+                (filteredGroupedAlbums.isNotEmpty ||
+                    filteredGroupedLocalAlbums.isNotEmpty)))
           SliverToBoxAdapter(
             child: SizedBox(height: _isSelectionMode ? 100 : 16),
           ),
       ],
     );
 
-    if (historyViewMode != 'grid') return content;
+    final scrollAwareContent = NotificationListener<ScrollNotification>(
+      onNotification: (notification) => _handleLibraryScrollNotification(
+        notification: notification,
+        filterMode: filterMode,
+        hasMoreLibrary: hasMoreLibrary,
+        isPageLoading: isPageLoading,
+      ),
+      child: content,
+    );
+
+    if (historyViewMode != 'grid') return scrollAwareContent;
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onScaleStart: _handleLibraryGridScaleStart,
       onScaleUpdate: _handleLibraryGridScaleUpdate,
       onScaleEnd: _handleLibraryGridScaleEnd,
-      child: content,
+      child: scrollAwareContent,
     );
   }
 
@@ -3848,7 +3948,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
           context: context,
           albumName: album.albumName,
           artistName: album.artistName,
-          trackCount: album.tracks.length,
+          trackCount: album.displayTrackCount,
           colorScheme: colorScheme,
           coverWidget: embeddedCoverPath != null
               ? Image.file(
@@ -3890,7 +3990,7 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       context: context,
       albumName: album.albumName,
       artistName: album.artistName,
-      trackCount: album.tracks.length,
+      trackCount: album.displayTrackCount,
       colorScheme: colorScheme,
       coverWidget: album.coverPath != null
           ? Image.file(
@@ -6033,7 +6133,10 @@ class _QueueTabState extends ConsumerState<QueueTab> {
                 children: [
                   AspectRatio(
                     aspectRatio: 1,
-                    child: _buildUnifiedCoverImage(item, colorScheme),
+                    child: Hero(
+                      tag: 'cover_lib_${item.id}',
+                      child: _buildUnifiedCoverImage(item, colorScheme),
+                    ),
                   ),
                   Positioned(
                     right: 4,

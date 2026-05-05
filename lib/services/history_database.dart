@@ -5,11 +5,64 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotiflac_android/utils/logger.dart';
+import 'package:spotiflac_android/utils/path_match_keys.dart';
 
 final _log = AppLogger('HistoryDatabase');
 final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
 String? _currentContainerPath;
+
+class HistoryLookupRequest {
+  final String spotifyId;
+  final String? isrc;
+  final String trackName;
+  final String artistName;
+
+  const HistoryLookupRequest({
+    required this.spotifyId,
+    this.isrc,
+    required this.trackName,
+    required this.artistName,
+  });
+
+  String get lookupKey =>
+      '${spotifyId.trim()}|${HistoryDatabase.normalizeIsrc(isrc)}|'
+      '${HistoryDatabase.matchKeyFor(trackName, artistName)}';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HistoryLookupRequest &&
+          spotifyId == other.spotifyId &&
+          isrc == other.isrc &&
+          trackName == other.trackName &&
+          artistName == other.artistName;
+
+  @override
+  int get hashCode => Object.hash(spotifyId, isrc, trackName, artistName);
+}
+
+class HistoryBatchLookupRequest {
+  final List<HistoryLookupRequest> tracks;
+
+  const HistoryBatchLookupRequest(this.tracks);
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! HistoryBatchLookupRequest ||
+        other.tracks.length != tracks.length) {
+      return false;
+    }
+    for (var i = 0; i < tracks.length; i++) {
+      if (tracks[i] != other.tracks[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(tracks);
+}
 
 class HistoryDatabase {
   static final HistoryDatabase instance = HistoryDatabase._init();
@@ -31,7 +84,7 @@ class HistoryDatabase {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 8,
       onConfigure: (db) async {
         await db.rawQuery('PRAGMA journal_mode = WAL');
         await db.execute('PRAGMA synchronous = NORMAL');
@@ -74,7 +127,10 @@ class HistoryDatabase {
         genre TEXT,
         composer TEXT,
         label TEXT,
-        copyright TEXT
+        copyright TEXT,
+        spotify_id_norm TEXT,
+        isrc_norm TEXT,
+        match_key TEXT
       )
     ''');
 
@@ -86,6 +142,11 @@ class HistoryDatabase {
     await db.execute(
       'CREATE INDEX idx_album ON history(album_name, album_artist)',
     );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_history_track_artist ON history(track_name, artist_name)',
+    );
+    await _createNormalizedIndexes(db);
+    await _createPathKeyTable(db);
 
     _log.i('Database schema created with indexes');
   }
@@ -125,6 +186,152 @@ class HistoryDatabase {
       if (!hasTotalDiscs) {
         await db.execute('ALTER TABLE history ADD COLUMN total_discs INTEGER');
       }
+    }
+    if (oldVersion < 6) {
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_history_track_artist ON history(track_name, artist_name)',
+      );
+    }
+    if (oldVersion < 7) {
+      await _createPathKeyTable(db);
+      await _backfillPathKeys(db);
+    }
+    if (oldVersion < 8) {
+      await _addColumnIfMissing(db, 'history', 'spotify_id_norm', 'TEXT');
+      await _addColumnIfMissing(db, 'history', 'isrc_norm', 'TEXT');
+      await _addColumnIfMissing(db, 'history', 'match_key', 'TEXT');
+      await _backfillNormalizedColumns(db);
+      await _createNormalizedIndexes(db);
+    }
+  }
+
+  static String normalizeLookupText(String? value) {
+    return (value ?? '').trim().toLowerCase();
+  }
+
+  static String normalizeIsrc(String? value) {
+    return (value ?? '').trim().toUpperCase().replaceAll(RegExp(r'[-\s]'), '');
+  }
+
+  static String normalizeSpotifyId(String? value) {
+    return (value ?? '').trim().toLowerCase();
+  }
+
+  static String matchKeyFor(String? trackName, String? artistName) {
+    final track = normalizeLookupText(trackName);
+    if (track.isEmpty) return '';
+    return '$track|${normalizeLookupText(artistName)}';
+  }
+
+  static List<String> spotifyLookupCandidates(String? rawId) {
+    final trimmed = rawId?.trim() ?? '';
+    if (trimmed.isEmpty) return const [];
+    final candidates = <String>{trimmed};
+    final lowered = trimmed.toLowerCase();
+    if (lowered.startsWith('spotify:track:')) {
+      final compact = trimmed.split(':').last.trim();
+      if (compact.isNotEmpty) candidates.add(compact);
+    } else if (!trimmed.contains(':')) {
+      candidates.add('spotify:track:$trimmed');
+    }
+    return candidates.toList(growable: false);
+  }
+
+  Future<void> _addColumnIfMissing(
+    Database db,
+    String table,
+    String column,
+    String type,
+  ) async {
+    final columns = await db.rawQuery('PRAGMA table_info($table)');
+    final exists = columns.any(
+      (row) => (row['name']?.toString().toLowerCase() ?? '') == column,
+    );
+    if (!exists) {
+      await db.execute('ALTER TABLE $table ADD COLUMN $column $type');
+    }
+  }
+
+  Future<void> _createNormalizedIndexes(DatabaseExecutor db) async {
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_history_spotify_id_norm ON history(spotify_id_norm)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_history_isrc_norm ON history(isrc_norm)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_history_match_key ON history(match_key)',
+    );
+  }
+
+  Future<void> _backfillNormalizedColumns(Database db) async {
+    final rows = await db.query(
+      'history',
+      columns: ['id', 'spotify_id', 'isrc', 'track_name', 'artist_name'],
+    );
+    final batch = db.batch();
+    for (final row in rows) {
+      batch.update(
+        'history',
+        _normalizedColumns(
+          spotifyId: row['spotify_id'] as String?,
+          isrc: row['isrc'] as String?,
+          trackName: row['track_name'] as String?,
+          artistName: row['artist_name'] as String?,
+        ),
+        where: 'id = ?',
+        whereArgs: [row['id']],
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Map<String, dynamic> _normalizedColumns({
+    required String? spotifyId,
+    required String? isrc,
+    required String? trackName,
+    required String? artistName,
+  }) {
+    return {
+      'spotify_id_norm': normalizeSpotifyId(spotifyId),
+      'isrc_norm': normalizeIsrc(isrc),
+      'match_key': matchKeyFor(trackName, artistName),
+    };
+  }
+
+  Future<void> _createPathKeyTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS history_path_keys (
+        item_id TEXT NOT NULL,
+        path_key TEXT NOT NULL,
+        PRIMARY KEY (item_id, path_key)
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_history_path_keys_key ON history_path_keys(path_key)',
+    );
+  }
+
+  Future<void> _backfillPathKeys(Database db) async {
+    final rows = await db.query('history', columns: ['id', 'file_path']);
+    final batch = db.batch();
+    for (final row in rows) {
+      _putPathKeysInBatch(
+        batch,
+        row['id'] as String,
+        row['file_path'] as String?,
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  void _putPathKeysInBatch(Batch batch, String id, String? filePath) {
+    batch.delete('history_path_keys', where: 'item_id = ?', whereArgs: [id]);
+    for (final key in buildPathMatchKeys(filePath)) {
+      batch.insert('history_path_keys', {
+        'item_id': id,
+        'path_key': key,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
   }
 
@@ -202,6 +409,7 @@ class HistoryDatabase {
               where: 'id = ?',
               whereArgs: [id],
             );
+            _putPathKeysInBatch(batch, id, newPath);
             updatedCount++;
           }
         }
@@ -253,6 +461,11 @@ class HistoryDatabase {
           _jsonToDbRow(map),
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
+        _putPathKeysInBatch(
+          batch,
+          map['id'] as String,
+          map['filePath'] as String?,
+        );
       }
 
       await batch.commit(noResult: true);
@@ -268,7 +481,7 @@ class HistoryDatabase {
   }
 
   Map<String, dynamic> _jsonToDbRow(Map<String, dynamic> json) {
-    return {
+    final row = {
       'id': json['id'],
       'track_name': json['trackName'],
       'artist_name': json['artistName'],
@@ -299,6 +512,15 @@ class HistoryDatabase {
       'label': json['label'],
       'copyright': json['copyright'],
     };
+    row.addAll(
+      _normalizedColumns(
+        spotifyId: json['spotifyId'] as String?,
+        isrc: json['isrc'] as String?,
+        trackName: json['trackName'] as String?,
+        artistName: json['artistName'] as String?,
+      ),
+    );
+    return row;
   }
 
   Map<String, dynamic> _dbRowToJson(Map<String, dynamic> row) {
@@ -337,25 +559,41 @@ class HistoryDatabase {
 
   Future<void> upsert(Map<String, dynamic> json) async {
     final db = await database;
-    await db.insert(
-      'history',
-      _jsonToDbRow(json),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.transaction((txn) async {
+      await txn.insert(
+        'history',
+        _jsonToDbRow(json),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      final batch = txn.batch();
+      _putPathKeysInBatch(
+        batch,
+        json['id'] as String,
+        json['filePath'] as String?,
+      );
+      await batch.commit(noResult: true);
+    });
   }
 
   Future<void> upsertBatch(List<Map<String, dynamic>> items) async {
     if (items.isEmpty) return;
     final db = await database;
-    final batch = db.batch();
-    for (final json in items) {
-      batch.insert(
-        'history',
-        _jsonToDbRow(json),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-    }
-    await batch.commit(noResult: true);
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final json in items) {
+        batch.insert(
+          'history',
+          _jsonToDbRow(json),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        _putPathKeysInBatch(
+          batch,
+          json['id'] as String,
+          json['filePath'] as String?,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
   }
 
   Future<List<Map<String, dynamic>>> getAll({int? limit, int? offset}) async {
@@ -367,6 +605,38 @@ class HistoryDatabase {
       offset: offset,
     );
     return rows.map(_dbRowToJson).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getAlbumTracks(
+    String albumName,
+    String artistName,
+  ) async {
+    final db = await database;
+    final rows = await db.query(
+      'history',
+      where:
+          'LOWER(album_name) = ? AND LOWER(COALESCE(album_artist, artist_name)) = ?',
+      whereArgs: [albumName.toLowerCase(), artistName.toLowerCase()],
+      orderBy:
+          'COALESCE(disc_number, 0), COALESCE(track_number, 0), track_name',
+    );
+    return rows.map(_dbRowToJson).toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>?> findByTrackAndArtist(
+    String trackName,
+    String artistName,
+  ) async {
+    final db = await database;
+    final rows = await db.query(
+      'history',
+      where: 'LOWER(track_name) = ? AND LOWER(artist_name) = ?',
+      whereArgs: [trackName.toLowerCase(), artistName.toLowerCase()],
+      orderBy: 'downloaded_at DESC',
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return _dbRowToJson(rows.first);
   }
 
   Future<Map<String, dynamic>?> getById(String id) async {
@@ -405,6 +675,117 @@ class HistoryDatabase {
     return _dbRowToJson(rows.first);
   }
 
+  Future<bool> existsTrack(HistoryLookupRequest request) async {
+    final row = await findExistingTrack(request, columns: ['id']);
+    return row != null;
+  }
+
+  Future<Map<String, dynamic>?> findExistingTrack(
+    HistoryLookupRequest request, {
+    List<String>? columns,
+  }) async {
+    final db = await database;
+    final spotifyCandidates = spotifyLookupCandidates(request.spotifyId);
+    if (spotifyCandidates.isNotEmpty) {
+      final placeholders = List.filled(spotifyCandidates.length, '?').join(',');
+      final normalized = spotifyCandidates.map(normalizeSpotifyId).toList();
+      final rows = await db.query(
+        'history',
+        columns: columns,
+        where:
+            'spotify_id IN ($placeholders) OR spotify_id_norm IN ($placeholders)',
+        whereArgs: [...spotifyCandidates, ...normalized],
+        orderBy: 'downloaded_at DESC',
+        limit: 1,
+      );
+      if (rows.isNotEmpty) return _dbRowToJson(rows.first);
+    }
+
+    final isrcNorm = normalizeIsrc(request.isrc);
+    if (isrcNorm.isNotEmpty) {
+      final rows = await db.query(
+        'history',
+        columns: columns,
+        where: 'isrc_norm = ?',
+        whereArgs: [isrcNorm],
+        orderBy: 'downloaded_at DESC',
+        limit: 1,
+      );
+      if (rows.isNotEmpty) return _dbRowToJson(rows.first);
+    }
+
+    final matchKey = matchKeyFor(request.trackName, request.artistName);
+    if (matchKey.isNotEmpty) {
+      final rows = await db.query(
+        'history',
+        columns: columns,
+        where: 'match_key = ?',
+        whereArgs: [matchKey],
+        orderBy: 'downloaded_at DESC',
+        limit: 1,
+      );
+      if (rows.isNotEmpty) return _dbRowToJson(rows.first);
+    }
+    return null;
+  }
+
+  Future<Set<String>> existingTrackKeys(
+    List<HistoryLookupRequest> requests,
+  ) async {
+    if (requests.isEmpty) return const <String>{};
+    final db = await database;
+    final found = <String>{};
+    final rawSpotifyToKeys = <String, Set<String>>{};
+    final normSpotifyToKeys = <String, Set<String>>{};
+    final isrcToKeys = <String, Set<String>>{};
+    final matchToKeys = <String, Set<String>>{};
+
+    void add(Map<String, Set<String>> map, String value, String key) {
+      if (value.isEmpty) return;
+      map.putIfAbsent(value, () => <String>{}).add(key);
+    }
+
+    for (final request in requests) {
+      final key = request.lookupKey;
+      for (final candidate in spotifyLookupCandidates(request.spotifyId)) {
+        add(rawSpotifyToKeys, candidate, key);
+        add(normSpotifyToKeys, normalizeSpotifyId(candidate), key);
+      }
+      add(isrcToKeys, normalizeIsrc(request.isrc), key);
+      add(matchToKeys, matchKeyFor(request.trackName, request.artistName), key);
+    }
+
+    Future<void> queryColumn(
+      String column,
+      Map<String, Set<String>> keyMap,
+    ) async {
+      final values = keyMap.keys.toList(growable: false);
+      const chunkSize = 450;
+      for (var i = 0; i < values.length; i += chunkSize) {
+        final end = (i + chunkSize < values.length)
+            ? i + chunkSize
+            : values.length;
+        final chunk = values.sublist(i, end);
+        final placeholders = List.filled(chunk.length, '?').join(',');
+        final rows = await db.rawQuery(
+          'SELECT DISTINCT $column AS lookup_value FROM history WHERE $column IN ($placeholders)',
+          chunk,
+        );
+        for (final row in rows) {
+          final value = row['lookup_value'] as String?;
+          if (value == null) continue;
+          found.addAll(keyMap[value] ?? const <String>{});
+        }
+      }
+    }
+
+    await queryColumn('spotify_id', rawSpotifyToKeys);
+    await queryColumn('spotify_id_norm', normSpotifyToKeys);
+    await queryColumn('isrc_norm', isrcToKeys);
+    await queryColumn('match_key', matchToKeys);
+    return found;
+  }
+
   Future<bool> existsBySpotifyId(String spotifyId) async {
     final db = await database;
     final result = await db.rawQuery(
@@ -424,17 +805,47 @@ class HistoryDatabase {
 
   Future<void> deleteById(String id) async {
     final db = await database;
-    await db.delete('history', where: 'id = ?', whereArgs: [id]);
+    await db.transaction((txn) async {
+      await txn.delete(
+        'history_path_keys',
+        where: 'item_id = ?',
+        whereArgs: [id],
+      );
+      await txn.delete('history', where: 'id = ?', whereArgs: [id]);
+    });
   }
 
-  Future<void> deleteBySpotifyId(String spotifyId) async {
+  Future<int> deleteBySpotifyId(String spotifyId) async {
     final db = await database;
-    await db.delete('history', where: 'spotify_id = ?', whereArgs: [spotifyId]);
+    final rows = await db.query(
+      'history',
+      columns: ['id'],
+      where: 'spotify_id = ?',
+      whereArgs: [spotifyId],
+    );
+    final ids = rows.map((row) => row['id'] as String).toList(growable: false);
+    return db.transaction<int>((txn) async {
+      for (final id in ids) {
+        await txn.delete(
+          'history_path_keys',
+          where: 'item_id = ?',
+          whereArgs: [id],
+        );
+      }
+      return txn.delete(
+        'history',
+        where: 'spotify_id = ?',
+        whereArgs: [spotifyId],
+      );
+    });
   }
 
   Future<void> clearAll() async {
     final db = await database;
-    await db.delete('history');
+    await db.transaction((txn) async {
+      await txn.delete('history_path_keys');
+      await txn.delete('history');
+    });
     _log.i('Cleared all history');
   }
 
@@ -442,6 +853,25 @@ class HistoryDatabase {
     final db = await database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM history');
     return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<Map<String, int>> getGroupedCounts() async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT
+        SUM(CASE WHEN track_count > 1 THEN 1 ELSE 0 END) AS albums,
+        SUM(CASE WHEN track_count = 1 THEN 1 ELSE 0 END) AS singles
+      FROM (
+        SELECT COUNT(*) AS track_count
+        FROM history
+        GROUP BY LOWER(album_name), LOWER(COALESCE(album_artist, artist_name))
+      )
+      ''');
+    final row = rows.isEmpty ? const <String, Object?>{} : rows.first;
+    return {
+      'albums': (row['albums'] as num?)?.toInt() ?? 0,
+      'singles': (row['singles'] as num?)?.toInt() ?? 0,
+    };
   }
 
   Future<Map<String, dynamic>?> findExisting({
@@ -506,7 +936,12 @@ class HistoryDatabase {
         values['sample_rate'] = newSampleRate;
       }
     }
-    await db.update('history', values, where: 'id = ?', whereArgs: [id]);
+    await db.transaction((txn) async {
+      await txn.update('history', values, where: 'id = ?', whereArgs: [id]);
+      final batch = txn.batch();
+      _putPathKeysInBatch(batch, id, newFilePath);
+      await batch.commit(noResult: true);
+    });
   }
 
   Future<void> updateAudioMetadata(
@@ -583,6 +1018,10 @@ class HistoryDatabase {
       final end = (i + chunkSize < ids.length) ? i + chunkSize : ids.length;
       final chunk = ids.sublist(i, end);
       final placeholders = List.filled(chunk.length, '?').join(',');
+      await db.rawDelete(
+        'DELETE FROM history_path_keys WHERE item_id IN ($placeholders)',
+        chunk,
+      );
       totalDeleted += await db.rawDelete(
         'DELETE FROM history WHERE id IN ($placeholders)',
         chunk,

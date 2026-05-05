@@ -232,11 +232,10 @@ class _TrackItemWithStatus extends ConsumerWidget {
       ),
     );
 
-    final isInHistory = ref.watch(
-      downloadHistoryProvider.select((state) {
-        return state.isDownloaded(track.id);
-      }),
-    );
+    final historyLookup = historyLookupForTrack(track);
+    final isInHistory = ref
+        .watch(downloadHistoryExistsProvider(historyLookup))
+        .maybeWhen(data: (exists) => exists, orElse: () => false);
 
     final isInLocalLibrary = showLocalLibraryIndicator
         ? ref.watch(
@@ -414,28 +413,23 @@ class _TrackItemWithStatus extends ConsumerWidget {
       return;
     }
 
-    if (isInHistory) {
-      final historyItem = ref
-          .read(downloadHistoryProvider.notifier)
-          .getBySpotifyId(track.id);
-      if (historyItem != null) {
-        final exists = await fileExists(historyItem.filePath);
-        if (exists) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  context.l10n.snackbarAlreadyDownloaded(track.name),
-                ),
-              ),
-            );
-          }
-          return;
-        } else {
-          ref
-              .read(downloadHistoryProvider.notifier)
-              .removeBySpotifyId(track.id);
+    final historyNotifier = ref.read(downloadHistoryProvider.notifier);
+    final historyItem = await historyNotifier.findExistingTrackAsync(
+      historyLookupForTrack(track),
+    );
+    if (historyItem != null) {
+      final exists = await fileExists(historyItem.filePath);
+      if (exists) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(context.l10n.snackbarAlreadyDownloaded(track.name)),
+            ),
+          );
         }
+        return;
+      } else {
+        historyNotifier.removeFromHistory(historyItem.id);
       }
     }
 

@@ -310,6 +310,16 @@ class _LibraryTracksFolderScreenState
     final folderTracks = entries
         .map((entry) => entry.track)
         .toList(growable: false);
+    final historyLookups = folderTracks
+        .map(historyLookupForTrack)
+        .toList(growable: false);
+    final existingHistoryKeys = ref
+        .watch(
+          downloadHistoryBatchExistsProvider(
+            HistoryBatchLookupRequest(historyLookups),
+          ),
+        )
+        .maybeWhen(data: (keys) => keys, orElse: () => const <String>{});
 
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
@@ -340,6 +350,9 @@ class _LibraryTracksFolderScreenState
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final entry = entries[index];
                       final isSelected = _selectedKeys.contains(entry.key);
+                      final isInHistory = existingHistoryKeys.contains(
+                        historyLookups[index].lookupKey,
+                      );
                       return KeyedSubtree(
                         key: ValueKey(entry.key),
                         child: StaggeredListItem(
@@ -349,6 +362,7 @@ class _LibraryTracksFolderScreenState
                             mode: widget.mode,
                             playlistId: widget.playlistId,
                             folderTracks: folderTracks,
+                            isInHistory: isInHistory,
                             isSelectionMode: _isSelectionMode,
                             isSelected: isSelected,
                             onTap: _isSelectionMode
@@ -871,9 +885,17 @@ class _LibraryTracksFolderScreenState
     );
   }
 
-  void _downloadAll(List<Track> tracks) {
+  Future<void> _downloadAll(List<Track> tracks) async {
     if (tracks.isEmpty) return;
-    final historyState = ref.read(downloadHistoryProvider);
+    final historyLookups = tracks
+        .map(historyLookupForTrack)
+        .toList(growable: false);
+    final existingHistoryKeys = await ref.read(
+      downloadHistoryBatchExistsProvider(
+        HistoryBatchLookupRequest(historyLookups),
+      ).future,
+    );
+    if (!mounted) return;
     final settings = ref.read(settingsProvider);
     final localLibState =
         (settings.localLibraryEnabled && settings.localLibraryShowDuplicates)
@@ -885,12 +907,11 @@ class _LibraryTracksFolderScreenState
     final tracksToQueue = <Track>[];
     var skippedCount = 0;
 
-    for (final track in tracks) {
-      final isInHistory =
-          historyState.isDownloaded(track.id) ||
-          (track.isrc != null && historyState.getByIsrc(track.isrc!) != null) ||
-          historyState.findByTrackAndArtist(track.name, track.artistName) !=
-              null;
+    for (var i = 0; i < tracks.length; i++) {
+      final track = tracks[i];
+      final isInHistory = existingHistoryKeys.contains(
+        historyLookups[i].lookupKey,
+      );
       final isInLocal =
           localLibState?.existsInLibrary(
             isrc: track.isrc,
@@ -1059,6 +1080,7 @@ class _CollectionTrackTile extends ConsumerWidget {
   final LibraryTracksFolderMode mode;
   final String? playlistId;
   final List<Track> folderTracks;
+  final bool isInHistory;
   final bool isSelectionMode;
   final bool isSelected;
   final VoidCallback? onTap;
@@ -1069,6 +1091,7 @@ class _CollectionTrackTile extends ConsumerWidget {
     required this.mode,
     required this.playlistId,
     required this.folderTracks,
+    required this.isInHistory,
     this.isSelectionMode = false,
     this.isSelected = false,
     this.onTap,
@@ -1097,7 +1120,7 @@ class _CollectionTrackTile extends ConsumerWidget {
 
     // Fine-grained provider watches – only this tile rebuilds when its own
     // history / local-library entry changes.
-    final historyItem = ref.watch(
+    final inMemoryHistoryItem = ref.watch(
       downloadHistoryProvider.select((state) {
         final byId = state.getBySpotifyId(track.id);
         if (byId != null) return byId;
@@ -1127,8 +1150,9 @@ class _CollectionTrackTile extends ConsumerWidget {
           )
         : false;
 
-    final isInHistory = historyItem != null;
-    final heroTag = historyItem != null ? 'cover_${historyItem.id}' : null;
+    final heroTag = inMemoryHistoryItem != null
+        ? 'cover_${inMemoryHistoryItem.id}'
+        : null;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1241,7 +1265,7 @@ class _CollectionTrackTile extends ConsumerWidget {
           ),
           trailing: isSelectionMode
               ? null
-              : historyItem != null || isInLocalLibrary
+              : isInHistory || isInLocalLibrary
               ? IconButton(
                   tooltip: context.l10n.tooltipPlay,
                   onPressed: () {
@@ -1379,18 +1403,21 @@ class _CollectionTrackTile extends ConsumerWidget {
 
   Future<void> _navigateToMetadata(BuildContext context, WidgetRef ref) async {
     final track = entry.track;
-    final historyState = ref.read(downloadHistoryProvider);
+    final historyNotifier = ref.read(downloadHistoryProvider.notifier);
 
-    var historyItem = historyState.getBySpotifyId(track.id);
+    var historyItem = await historyNotifier.getBySpotifyIdAsync(track.id);
+    if (!context.mounted) return;
 
     if (historyItem == null && track.isrc != null && track.isrc!.isNotEmpty) {
-      historyItem = historyState.getByIsrc(track.isrc!);
+      historyItem = await historyNotifier.getByIsrcAsync(track.isrc!);
+      if (!context.mounted) return;
     }
 
-    historyItem ??= historyState.findByTrackAndArtist(
+    historyItem ??= await historyNotifier.findByTrackAndArtistAsync(
       track.name,
       track.artistName,
     );
+    if (!context.mounted) return;
 
     if (historyItem != null) {
       await Navigator.of(context).push(

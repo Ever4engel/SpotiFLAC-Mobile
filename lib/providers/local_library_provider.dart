@@ -1308,22 +1308,3 @@ final localLibraryAlbumCountProvider =
         searchQuery: request.searchQuery,
       );
     });
-
-final localLibraryAllItemsProvider = FutureProvider<List<LocalLibraryItem>>((
-  ref,
-) async {
-  ref.watch(localLibraryProvider.select((state) => state.loadedIndexVersion));
-  const pageSize = 500;
-  final items = <LocalLibraryItem>[];
-  var offset = 0;
-  while (true) {
-    final rows = await LibraryDatabase.instance.getPage(
-      const LocalLibraryPageRequest(limit: pageSize).copyWithOffset(offset),
-    );
-    if (rows.isEmpty) break;
-    items.addAll(rows.map(LocalLibraryItem.fromJson));
-    if (rows.length < pageSize) break;
-    offset += pageSize;
-  }
-  return items;
-});

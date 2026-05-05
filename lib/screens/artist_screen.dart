@@ -1011,14 +1011,22 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
       return;
     }
 
-    final historyState = ref.read(downloadHistoryProvider);
+    final historyLookups = allTracks
+        .map(historyLookupForTrack)
+        .toList(growable: false);
+    final existingHistoryKeys = await ref.read(
+      downloadHistoryBatchExistsProvider(
+        HistoryBatchLookupRequest(historyLookups),
+      ).future,
+    );
     final tracksToQueue = <Track>[];
     int skippedCount = 0;
 
-    for (final track in allTracks) {
-      final isDownloaded =
-          historyState.isDownloaded(track.id) ||
-          (track.isrc != null && historyState.getByIsrc(track.isrc!) != null);
+    for (var i = 0; i < allTracks.length; i++) {
+      final track = allTracks[i];
+      final isDownloaded = existingHistoryKeys.contains(
+        historyLookups[i].lookupKey,
+      );
 
       if (!isDownloaded) {
         tracksToQueue.add(track);
@@ -1334,6 +1342,16 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
     }
 
     final tracks = _topTracks!;
+    final historyLookups = tracks
+        .map(historyLookupForTrack)
+        .toList(growable: false);
+    final existingHistoryKeys = ref
+        .watch(
+          downloadHistoryBatchExistsProvider(
+            HistoryBatchLookupRequest(historyLookups),
+          ),
+        )
+        .maybeWhen(data: (keys) => keys, orElse: () => const <String>{});
     const tracksPerPage = 5;
     final pageCount = (tracks.length / tracksPerPage).ceil();
 
@@ -1374,6 +1392,9 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
                     globalIndex + 1,
                     entry.value,
                     colorScheme,
+                    existingHistoryKeys.contains(
+                      historyLookups[globalIndex].lookupKey,
+                    ),
                   );
                 }).toList(),
               );
@@ -1411,6 +1432,7 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
     int rank,
     Track track,
     ColorScheme colorScheme,
+    bool isInHistory,
   ) {
     return Consumer(
       builder: (context, ref, child) {
@@ -1418,20 +1440,6 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
           downloadQueueLookupProvider.select(
             (lookup) => lookup.byTrackId[track.id],
           ),
-        );
-
-        final isInHistory = ref.watch(
-          downloadHistoryProvider.select((state) {
-            if (state.isDownloaded(track.id)) return true;
-            final isrc = track.isrc?.trim();
-            if (isrc != null &&
-                isrc.isNotEmpty &&
-                state.getByIsrc(isrc) != null) {
-              return true;
-            }
-            return state.findByTrackAndArtist(track.name, track.artistName) !=
-                null;
-          }),
         );
 
         final showLocalLibraryIndicator = ref.watch(
@@ -1600,18 +1608,16 @@ class _ArtistScreenState extends ConsumerState<ArtistScreen> {
   }
 
   Future<bool> _playLocalIfAvailable(Track track) async {
-    final historyState = ref.read(downloadHistoryProvider);
     final historyNotifier = ref.read(downloadHistoryProvider.notifier);
 
     try {
-      DownloadHistoryItem? historyItem = historyNotifier.getBySpotifyId(
-        track.id,
-      );
+      DownloadHistoryItem? historyItem = await historyNotifier
+          .getBySpotifyIdAsync(track.id);
       final isrc = track.isrc?.trim();
       historyItem ??= (isrc != null && isrc.isNotEmpty)
-          ? historyNotifier.getByIsrc(isrc)
+          ? await historyNotifier.getByIsrcAsync(isrc)
           : null;
-      historyItem ??= historyState.findByTrackAndArtist(
+      historyItem ??= await historyNotifier.findByTrackAndArtistAsync(
         track.name,
         track.artistName,
       );

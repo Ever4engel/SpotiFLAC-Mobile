@@ -477,15 +477,29 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
       );
     }
 
+    final historyLookups = _tracks
+        .map(historyLookupForTrack)
+        .toList(growable: false);
+    final existingHistoryKeys = ref
+        .watch(
+          downloadHistoryBatchExistsProvider(
+            HistoryBatchLookupRequest(historyLookups),
+          ),
+        )
+        .maybeWhen(data: (keys) => keys, orElse: () => const <String>{});
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         final track = _tracks[index];
+        final isInHistory = existingHistoryKeys.contains(
+          historyLookups[index].lookupKey,
+        );
         return KeyedSubtree(
           key: ValueKey(track.id),
           child: StaggeredListItem(
             index: index,
             child: _PlaylistTrackItem(
               track: track,
+              isInHistory: isInHistory,
               onDownload: () => _downloadTrack(context, track),
             ),
           ),
@@ -695,10 +709,18 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     _downloadTracks(context, _tracks);
   }
 
-  void _downloadTracks(BuildContext context, List<Track> tracks) {
+  Future<void> _downloadTracks(BuildContext context, List<Track> tracks) async {
     if (tracks.isEmpty) return;
 
-    final historyState = ref.read(downloadHistoryProvider);
+    final historyLookups = tracks
+        .map(historyLookupForTrack)
+        .toList(growable: false);
+    final existingHistoryKeys = await ref.read(
+      downloadHistoryBatchExistsProvider(
+        HistoryBatchLookupRequest(historyLookups),
+      ).future,
+    );
+    if (!context.mounted) return;
     final settings = ref.read(settingsProvider);
     final localLibState =
         (settings.localLibraryEnabled && settings.localLibraryShowDuplicates)
@@ -707,12 +729,11 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     final tracksToQueue = <Track>[];
     int skippedCount = 0;
 
-    for (final track in tracks) {
-      final isInHistory =
-          historyState.isDownloaded(track.id) ||
-          (track.isrc != null && historyState.getByIsrc(track.isrc!) != null) ||
-          historyState.findByTrackAndArtist(track.name, track.artistName) !=
-              null;
+    for (var i = 0; i < tracks.length; i++) {
+      final track = tracks[i];
+      final isInHistory = existingHistoryKeys.contains(
+        historyLookups[i].lookupKey,
+      );
       final isInLocal =
           localLibState?.existsInLibrary(
             isrc: track.isrc,
@@ -781,9 +802,14 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
 
 class _PlaylistTrackItem extends ConsumerWidget {
   final Track track;
+  final bool isInHistory;
   final VoidCallback onDownload;
 
-  const _PlaylistTrackItem({required this.track, required this.onDownload});
+  const _PlaylistTrackItem({
+    required this.track,
+    required this.isInHistory,
+    required this.onDownload,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -793,17 +819,6 @@ class _PlaylistTrackItem extends ConsumerWidget {
       downloadQueueLookupProvider.select(
         (lookup) => lookup.byTrackId[track.id],
       ),
-    );
-
-    final isInHistory = ref.watch(
-      downloadHistoryProvider.select((state) {
-        if (state.isDownloaded(track.id)) return true;
-        final isrc = track.isrc?.trim();
-        if (isrc != null && isrc.isNotEmpty && state.getByIsrc(isrc) != null) {
-          return true;
-        }
-        return state.findByTrackAndArtist(track.name, track.artistName) != null;
-      }),
     );
 
     final showLocalLibraryIndicator = ref.watch(
@@ -942,18 +957,16 @@ class _PlaylistTrackItem extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final historyState = ref.read(downloadHistoryProvider);
     final historyNotifier = ref.read(downloadHistoryProvider.notifier);
 
     try {
-      DownloadHistoryItem? historyItem = historyNotifier.getBySpotifyId(
-        track.id,
-      );
+      DownloadHistoryItem? historyItem = await historyNotifier
+          .getBySpotifyIdAsync(track.id);
       final isrc = track.isrc?.trim();
       historyItem ??= (isrc != null && isrc.isNotEmpty)
-          ? historyNotifier.getByIsrc(isrc)
+          ? await historyNotifier.getByIsrcAsync(isrc)
           : null;
-      historyItem ??= historyState.findByTrackAndArtist(
+      historyItem ??= await historyNotifier.findByTrackAndArtistAsync(
         track.name,
         track.artistName,
       );

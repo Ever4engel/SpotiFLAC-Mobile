@@ -1,6 +1,10 @@
 package gobackend
 
-import "testing"
+import (
+	"strings"
+	"testing"
+	"unicode/utf8"
+)
 
 func TestBuildFilenameFromTemplate_WithRawTrackAndDisc(t *testing.T) {
 	metadata := map[string]interface{}{
@@ -96,5 +100,15 @@ func TestSanitizeFilenameFallsBackToUnknownWhenEmpty(t *testing.T) {
 	got := sanitizeFilename(`<>:"/\|?*`)
 	if got != "Unknown" {
 		t.Fatalf("expected %q, got %q", "Unknown", got)
+	}
+}
+
+func TestSanitizeFilenameTruncatesWithoutSplittingUTF8(t *testing.T) {
+	got := sanitizeFilename(strings.Repeat("あ", 80))
+	if !utf8.ValidString(got) {
+		t.Fatalf("sanitizeFilename returned invalid UTF-8: %q", got)
+	}
+	if len(got) > 200 {
+		t.Fatalf("sanitizeFilename length = %d, want <= 200", len(got))
 	}
 }

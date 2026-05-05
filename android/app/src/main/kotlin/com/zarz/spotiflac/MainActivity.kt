@@ -43,6 +43,7 @@ class MainActivity: FlutterFragmentActivity() {
         "com.zarz.spotiflac/library_scan_progress_stream"
     private val DOWNLOAD_PROGRESS_STREAM_POLLING_INTERVAL_MS = 1200L
     private val LIBRARY_SCAN_PROGRESS_STREAM_POLLING_INTERVAL_MS = 200L
+    private val MAX_SAF_DISPLAY_NAME_UTF8_BYTES = 180
     private val LARGE_JSON_RESULT_FILE_KEY = "__json_file"
     private val LARGE_JSON_RESULT_FILE_THRESHOLD_BYTES = 256 * 1024
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -329,7 +330,45 @@ class MainActivity: FlutterFragmentActivity() {
             .replace(Regex("_+"), "_")
             .trim('_', ' ')
 
+        sanitized = truncateSafDisplayName(sanitized, MAX_SAF_DISPLAY_NAME_UTF8_BYTES)
+        sanitized = sanitized.trim().trim('.', ' ').trim('_', ' ')
         return if (sanitized.isBlank()) "Unknown" else sanitized
+    }
+
+    private fun truncateSafDisplayName(name: String, maxBytes: Int): String {
+        if (maxBytes <= 0 || name.toByteArray(Charsets.UTF_8).size <= maxBytes) return name
+
+        val dotIndex = name.lastIndexOf('.')
+        val ext = if (
+            dotIndex > 0 &&
+            dotIndex < name.length - 1 &&
+            name.length - dotIndex <= 10
+        ) {
+            name.substring(dotIndex)
+        } else {
+            ""
+        }
+        val stem = if (ext.isNotEmpty()) name.substring(0, dotIndex) else name
+        val maxStemBytes = (maxBytes - ext.toByteArray(Charsets.UTF_8).size).coerceAtLeast(1)
+        return truncateUtf8Bytes(stem, maxStemBytes).trim().trim('.', ' ').trim('_', ' ') + ext
+    }
+
+    private fun truncateUtf8Bytes(value: String, maxBytes: Int): String {
+        if (maxBytes <= 0 || value.toByteArray(Charsets.UTF_8).size <= maxBytes) return value
+
+        val builder = StringBuilder()
+        var usedBytes = 0
+        var index = 0
+        while (index < value.length) {
+            val codePoint = value.codePointAt(index)
+            val char = String(Character.toChars(codePoint))
+            val charBytes = char.toByteArray(Charsets.UTF_8).size
+            if (usedBytes + charBytes > maxBytes) break
+            builder.append(char)
+            usedBytes += charBytes
+            index += Character.charCount(codePoint)
+        }
+        return builder.toString()
     }
 
     private fun sanitizeRelativeDir(relativeDir: String): String {

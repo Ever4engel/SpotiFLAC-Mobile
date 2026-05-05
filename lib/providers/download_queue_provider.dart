@@ -36,6 +36,8 @@ double _log10(num x) => log(x) / ln10;
 final _yearRegex = RegExp(r'^(\d{4})');
 const _defaultOutputFolderName = 'SpotiFLAC';
 const _defaultAndroidMusicSubpath = 'Music/$_defaultOutputFolderName';
+const _maxSafFilenameUtf8Bytes = 180;
+const _maxSafDirSegmentUtf8Bytes = 120;
 
 class DownloadHistoryItem {
   final String id;
@@ -2309,6 +2311,55 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       return 'Unknown';
     }
     return sanitized;
+  }
+
+  String _truncateUtf8Bytes(String value, int maxBytes) {
+    if (maxBytes <= 0 || utf8.encode(value).length <= maxBytes) {
+      return value;
+    }
+
+    final buffer = StringBuffer();
+    var usedBytes = 0;
+    for (final rune in value.runes) {
+      final char = String.fromCharCode(rune);
+      final charBytes = utf8.encode(char).length;
+      if (usedBytes + charBytes > maxBytes) break;
+      buffer.write(char);
+      usedBytes += charBytes;
+    }
+    return buffer.toString();
+  }
+
+  String _trimSafeName(String value) {
+    var trimmed = value.trim();
+    trimmed = trimmed.replaceAll(_trimDotsAndSpacesRegex, '');
+    trimmed = trimmed.replaceAll(_trimUnderscoresAndSpacesRegex, '');
+    return trimmed.isEmpty ? 'Unknown' : trimmed;
+  }
+
+  String _sanitizeSafRelativeDir(String relativeDir) {
+    if (relativeDir.trim().isEmpty) return '';
+    final parts = relativeDir
+        .split('/')
+        .map(_sanitizeFolderName)
+        .map((part) {
+          final truncated = _truncateUtf8Bytes(
+            part,
+            _maxSafDirSegmentUtf8Bytes,
+          );
+          return _trimSafeName(truncated);
+        })
+        .where((part) => part.isNotEmpty && part != '.' && part != '..')
+        .toList(growable: false);
+    return parts.join('/');
+  }
+
+  Future<String> _buildSafFileName(String baseName, String outputExt) async {
+    final sanitized = await PlatformBridge.sanitizeFilename(baseName);
+    final extBytes = utf8.encode(outputExt).length;
+    final maxBaseBytes = max(1, _maxSafFilenameUtf8Bytes - extBytes);
+    final truncated = _truncateUtf8Bytes(sanitized, maxBaseBytes);
+    return '${_trimSafeName(truncated)}$outputExt';
   }
 
   static final _featuredArtistPattern = RegExp(
@@ -4771,7 +4822,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     if (quality == 'DEFAULT') quality = state.audioQuality;
 
     final isSafMode = _isSafMode(settings);
-    final outputDir = isSafMode
+    final rawOutputDir = isSafMode
         ? await _buildRelativeOutputDir(
             item.track,
             settings.folderOrganization,
@@ -4796,6 +4847,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                 settings.filterContributingArtistsInAlbumArtist,
             playlistName: item.playlistName,
           );
+    final outputDir = isSafMode
+        ? _sanitizeSafRelativeDir(rawOutputDir)
+        : rawOutputDir;
     if (!isSafMode) {
       await _ensureDirExists(outputDir, label: 'Output folder');
     }
@@ -4822,8 +4876,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         'year': _extractYear(item.track.releaseDate) ?? '',
         'date': item.track.releaseDate ?? '',
       });
-      final sanitized = await PlatformBridge.sanitizeFilename(baseName);
-      safFileName = '$sanitized$safOutputExt';
+      safFileName = await _buildSafFileName(baseName, safOutputExt);
     }
 
     var trackForPayload = item.track;
@@ -6240,7 +6293,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
                   settings.filterContributingArtistsInAlbumArtist,
               playlistName: item.playlistName,
             );
-      var effectiveOutputDir = initialOutputDir;
+      var effectiveOutputDir = isSafMode
+          ? _sanitizeSafRelativeDir(initialOutputDir)
+          : initialOutputDir;
       var effectiveSafMode = isSafMode;
 
       String? safFileName;
@@ -6259,9 +6314,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           'year': _extractYear(trackToDownload.releaseDate) ?? '',
           'date': trackToDownload.releaseDate ?? '',
         });
-        final sanitized = await PlatformBridge.sanitizeFilename(baseName);
-        safBaseName = sanitized;
-        safFileName = '$sanitized$safOutputExt';
+        safFileName = await _buildSafFileName(baseName, safOutputExt);
+        safBaseName = safFileName.replaceFirst(RegExp(r'\.[^.]+$'), '');
       }
       String? finalSafFileName = safFileName;
 

@@ -48,7 +48,7 @@ func sanitizeFilename(filename string) string {
 	}
 
 	if len(sanitized) > 200 {
-		sanitized = sanitized[:200]
+		sanitized = truncateUTF8Bytes(sanitized, 200)
 		sanitized = strings.TrimSpace(strings.Trim(sanitized, ". "))
 		sanitized = strings.Trim(sanitized, "_ ")
 	}
@@ -58,6 +58,25 @@ func sanitizeFilename(filename string) string {
 	}
 
 	return sanitized
+}
+
+func truncateUTF8Bytes(value string, maxBytes int) string {
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+
+	used := 0
+	for i, r := range value {
+		runeLen := utf8.RuneLen(r)
+		if runeLen < 0 {
+			runeLen = len(string(r))
+		}
+		if used+runeLen > maxBytes {
+			return value[:i]
+		}
+		used += runeLen
+	}
+	return value
 }
 
 func buildFilenameFromTemplate(template string, metadata map[string]interface{}) string {

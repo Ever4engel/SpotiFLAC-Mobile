@@ -14,6 +14,7 @@ import java.util.Locale
  */
 object SafDownloadHandler {
     private val safDirLock = Any()
+    private const val MAX_SAF_DISPLAY_NAME_UTF8_BYTES = 180
 
     fun handle(context: Context, requestJson: String, downloader: (String) -> String): String {
         val req = JSONObject(requestJson)
@@ -321,7 +322,45 @@ object SafDownloadHandler {
             .replace(Regex("_+"), "_")
             .trim('_', ' ')
 
+        sanitized = truncateSafDisplayName(sanitized, MAX_SAF_DISPLAY_NAME_UTF8_BYTES)
+        sanitized = sanitized.trim().trim('.', ' ').trim('_', ' ')
         return if (sanitized.isBlank()) "Unknown" else sanitized
+    }
+
+    private fun truncateSafDisplayName(name: String, maxBytes: Int): String {
+        if (maxBytes <= 0 || name.toByteArray(Charsets.UTF_8).size <= maxBytes) return name
+
+        val dotIndex = name.lastIndexOf('.')
+        val ext = if (
+            dotIndex > 0 &&
+            dotIndex < name.length - 1 &&
+            name.length - dotIndex <= 10
+        ) {
+            name.substring(dotIndex)
+        } else {
+            ""
+        }
+        val stem = if (ext.isNotEmpty()) name.substring(0, dotIndex) else name
+        val maxStemBytes = (maxBytes - ext.toByteArray(Charsets.UTF_8).size).coerceAtLeast(1)
+        return truncateUtf8Bytes(stem, maxStemBytes).trim().trim('.', ' ').trim('_', ' ') + ext
+    }
+
+    private fun truncateUtf8Bytes(value: String, maxBytes: Int): String {
+        if (maxBytes <= 0 || value.toByteArray(Charsets.UTF_8).size <= maxBytes) return value
+
+        val builder = StringBuilder()
+        var usedBytes = 0
+        var index = 0
+        while (index < value.length) {
+            val codePoint = value.codePointAt(index)
+            val char = String(Character.toChars(codePoint))
+            val charBytes = char.toByteArray(Charsets.UTF_8).size
+            if (usedBytes + charBytes > maxBytes) break
+            builder.append(char)
+            usedBytes += charBytes
+            index += Character.charCount(codePoint)
+        }
+        return builder.toString()
     }
 
     private fun sanitizeRelativeDir(relativeDir: String): String {

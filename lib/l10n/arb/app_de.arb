@@ -29,11 +29,11 @@
   "@homeSubtitle": {
     "description": "Subtitle shown below search box"
   },
-  "homeEmptyTitle": "No search providers yet",
+  "homeEmptyTitle": "Noch keine Suchanbieter",
   "@homeEmptyTitle": {
     "description": "Title shown on home when no providers are available yet"
   },
-  "homeEmptySubtitle": "Install an extension to continue.",
+  "homeEmptySubtitle": "Installiere eine Erweiterung um fortzufahren.",
   "@homeEmptySubtitle": {
     "description": "Subtitle shown on home when no providers are available yet"
   },
@@ -153,7 +153,7 @@
   "@optionsPrimaryProvider": {
     "description": "Main search provider setting"
   },
-  "optionsPrimaryProviderSubtitle": "Service used for searching by track or album name",
+  "optionsPrimaryProviderSubtitle": "Dienst zur Suche nach Titel oder Albumnamen",
   "@optionsPrimaryProviderSubtitle": {
     "description": "Subtitle for primary provider"
   },
@@ -170,7 +170,7 @@
   "@optionsDefaultSearchTab": {
     "description": "Title for the preferred default search tab setting"
   },
-  "optionsDefaultSearchTabSubtitle": "Choose which tab opens first for new search results.",
+  "optionsDefaultSearchTabSubtitle": "Wähle aus, welcher Tab zuerst für neue Suchergebnisse geöffnet wird.",
   "@optionsDefaultSearchTabSubtitle": {
     "description": "Subtitle for the preferred default search tab setting"
   },
@@ -218,7 +218,7 @@
   "@optionsReplayGain": {
     "description": "Title for ReplayGain setting toggle"
   },
-  "optionsReplayGainSubtitleOn": "Scan loudness and embed ReplayGain tags (EBU R128)",
+  "optionsReplayGainSubtitleOn": "Scanne Lautstärke und füge ReplayGain-Tags ein (EBU R128)",
   "@optionsReplayGainSubtitleOn": {
     "description": "Subtitle when ReplayGain is enabled"
   },
@@ -315,7 +315,7 @@
   "@optionsDetailedLogging": {
     "description": "Enable verbose logs for debugging"
   },
-  "optionsDetailedLoggingOn": "Detaillierte Protokolle werden aufgezeichnet",
+  "optionsDetailedLoggingOn": "Detaillierte Logs werden aufgezeichnet",
   "@optionsDetailedLoggingOn": {
     "description": "Status when logging enabled"
   },
@@ -691,7 +691,7 @@
   "@setupAllowAccessToManageFiles": {
     "description": "Instruction for file access permission"
   },
-  "setupLanguageTitle": "Choose Language",
+  "setupLanguageTitle": "Sprache auswählen",
   "@setupLanguageTitle": {
     "description": "Title for the language selection step in setup"
   },
@@ -699,7 +699,7 @@
   "@setupLanguageDescription": {
     "description": "Description for the language selection step in setup"
   },
-  "setupLanguageSystemDefault": "System Default",
+  "setupLanguageSystemDefault": "Systemstandard",
   "@setupLanguageSystemDefault": {
     "description": "Option to use the system language"
   },
@@ -1259,15 +1259,15 @@
   "@metadataMayRateLimit": {
     "description": "Spotify provider description"
   },
-  "logTitle": "Protokolle",
+  "logTitle": "Logs",
   "@logTitle": {
     "description": "Logs screen title"
   },
-  "logCopied": "Protokolle in Zwischenablage kopiert",
+  "logCopied": "Logs in Zwischenablage kopiert",
   "@logCopied": {
     "description": "Snackbar - logs copied"
   },
-  "logSearchHint": "Protokolle durchsuchen...",
+  "logSearchHint": "Logs durchsuchen ...",
   "@logSearchHint": {
     "description": "Log search placeholder"
   },
@@ -1279,31 +1279,31 @@
   "@logFilterSection": {
     "description": "Filter section title"
   },
-  "logShareLogs": "Protokolle teilen",
+  "logShareLogs": "Logs teilen",
   "@logShareLogs": {
     "description": "Share button tooltip"
   },
-  "logClearLogs": "Protokolle löschen",
+  "logClearLogs": "Logs löschen",
   "@logClearLogs": {
     "description": "Clear button tooltip"
   },
-  "logClearLogsTitle": "Protokolle leeren",
+  "logClearLogsTitle": "Logs leeren",
   "@logClearLogsTitle": {
     "description": "Clear logs dialog title"
   },
-  "logClearLogsMessage": "Bist du dir sicher, dass Sie alle Protokolle löschen möchtest?",
+  "logClearLogsMessage": "Bist du dir sicher, dass Sie alle Logs löschen möchtest?",
   "@logClearLogsMessage": {
     "description": "Clear logs confirmation message"
   },
-  "logFilterBySeverity": "Protokolle nach Schweregrad filtern",
+  "logFilterBySeverity": "Logs nach Schweregrad filtern",
   "@logFilterBySeverity": {
     "description": "Filter dialog title"
   },
-  "logNoLogsYet": "Keine Protokolle bisher",
+  "logNoLogsYet": "Noch keine Logs",
   "@logNoLogsYet": {
     "description": "Empty state title"
   },
-  "logNoLogsYetSubtitle": "Protokolle werden hier angezeigt, während du die App benutzt",
+  "logNoLogsYetSubtitle": "Logs werden hier angezeigt, während du die App benutzt",
   "@logNoLogsYetSubtitle": {
     "description": "Empty state subtitle"
   },
@@ -3338,7 +3338,7 @@
   "@collectionLoved": {
     "description": "Custom folder for favorite tracks"
   },
-  "collectionFavoriteArtists": "Favorite Artists",
+  "collectionFavoriteArtists": "Lieblingskünstler",
   "@collectionFavoriteArtists": {
     "description": "Custom folder for favorite artists"
   },
@@ -3375,7 +3375,7 @@
       }
     }
   },
-  "collectionArtistCount": "{count, plural, =1{1 artist} other{{count} artists}}",
+  "collectionArtistCount": "{count, plural, one {}=1{1 Künstler} other{{count} Künstler}}",
   "@collectionArtistCount": {
     "description": "Artist count label for favorite artists",
     "placeholders": {
@@ -4304,7 +4304,7 @@
   "@extensionsHomeFeedAutoSubtitle": {
     "description": "Extensions page - subtitle for auto home feed option"
   },
-  "extensionsHomeFeedOff": "Off",
+  "extensionsHomeFeedOff": "Aus",
   "@extensionsHomeFeedOff": {
     "description": "Extensions page - home feed provider option: off"
   },
@@ -4618,7 +4618,7 @@
   "@notifUpdateFailedBody": {
     "description": "Notification body when app update download fails"
   },
-  "searchTracks": "Tracks",
+  "searchTracks": "Titel",
   "@searchTracks": {
     "description": "Search filter label - tracks"
   },
@@ -4643,7 +4643,7 @@
   "@homeChangeSearchProviderTooltip": {
     "description": "Tooltip for the Home search provider picker"
   },
-  "actionPaste": "Paste",
+  "actionPaste": "Einfügen",
   "@actionPaste": {
     "description": "Generic action - paste from clipboard"
   },
@@ -4752,7 +4752,7 @@
   "@logAutoScrollOff": {
     "description": "Tooltip when auto-scroll is disabled on the log screen"
   },
-  "logCopyLogs": "Copy logs",
+  "logCopyLogs": "Logs kopieren",
   "@logCopyLogs": {
     "description": "Tooltip for copying logs"
   },
@@ -4833,7 +4833,7 @@
   "@extensionUtilityFunctions": {
     "description": "Capability label for utility-only extensions"
   },
-  "actionDismiss": "Dismiss",
+  "actionDismiss": "Schließen",
   "@actionDismiss": {
     "description": "Generic action - dismiss"
   },

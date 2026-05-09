@@ -3029,6 +3029,47 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
+  String? _normalizeAudioExt(Object? value) {
+    final raw = value?.toString().trim().toLowerCase();
+    if (raw == null || raw.isEmpty) return null;
+    final normalized = raw.startsWith('.') ? raw : '.$raw';
+    const allowed = {'.flac', '.m4a', '.mp4', '.mp3', '.opus', '.ogg', '.aac'};
+    return allowed.contains(normalized) ? normalized : null;
+  }
+
+  String? _downloadResultOutputExt(
+    Map<String, dynamic> result, {
+    String? filePath,
+  }) {
+    final explicit =
+        _normalizeAudioExt(result['actual_extension']) ??
+        _normalizeAudioExt(result['output_extension']) ??
+        _normalizeAudioExt(result['actual_container']) ??
+        _normalizeAudioExt(result['container']);
+    if (explicit != null) return explicit;
+
+    for (final candidate in <String?>[
+      result['file_name'] as String?,
+      filePath,
+      result['file_path'] as String?,
+    ]) {
+      if (candidate == null) continue;
+      final lower = candidate.trim().toLowerCase();
+      for (final ext in const [
+        '.flac',
+        '.m4a',
+        '.mp4',
+        '.mp3',
+        '.opus',
+        '.ogg',
+        '.aac',
+      ]) {
+        if (lower.endsWith(ext)) return ext;
+      }
+    }
+    return null;
+  }
+
   Future<String?> _getSafMimeType(String uri) async {
     try {
       final stat = await PlatformBridge.safStat(uri);
@@ -6049,6 +6090,25 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     if (context.quality == 'HIGH' || context.outputExt != '.flac') {
       return filePath;
     }
+    final requiresContainerConversion =
+        result['requires_container_conversion'] == true ||
+        result['requiresContainerConversion'] == true;
+    final resultOutputExt = _downloadResultOutputExt(
+      result,
+      filePath: filePath,
+    );
+    final lowerPath = filePath.toLowerCase();
+    final resultFileName = (result['file_name'] as String?)?.toLowerCase();
+    final mayNeedContainerConversion =
+        requiresContainerConversion ||
+        lowerPath.endsWith('.m4a') ||
+        lowerPath.endsWith('.mp4') ||
+        resultOutputExt == '.m4a' ||
+        resultOutputExt == '.mp4' ||
+        isContentUri(filePath);
+    if (!mayNeedContainerConversion) {
+      return filePath;
+    }
     final requestedDecryptionExt =
         DownloadDecryptionDescriptor.fromDownloadResult(
           result,
@@ -6059,15 +6119,17 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       );
       return filePath;
     }
-    final lowerPath = filePath.toLowerCase();
-    final resultFileName = (result['file_name'] as String?)?.toLowerCase();
     final looksLikeM4a =
         lowerPath.endsWith('.m4a') ||
         lowerPath.endsWith('.mp4') ||
+        resultOutputExt == '.m4a' ||
+        resultOutputExt == '.mp4' ||
         (resultFileName != null &&
             (resultFileName.endsWith('.m4a') ||
                 resultFileName.endsWith('.mp4')));
-    if (!looksLikeM4a && !isContentUri(filePath)) {
+    if (!requiresContainerConversion &&
+        !looksLikeM4a &&
+        !isContentUri(filePath)) {
       return filePath;
     }
 
@@ -6097,6 +6159,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
       String? flacPath;
       try {
+        final codec = await FFmpegService.probePrimaryAudioCodec(tempPath);
+        if (!FFmpegService.isLosslessAudioCodec(codec) || codec == 'flac') {
+          _log.d(
+            'Preserving native container; audio codec is ${codec ?? 'unknown'}, not a lossless source needing FLAC conversion.',
+          );
+          return filePath;
+        }
         flacPath = await FFmpegService.convertM4aToFlac(tempPath);
         if (flacPath == null) {
           return null;
@@ -6133,6 +6202,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
     }
 
+    final codec = await FFmpegService.probePrimaryAudioCodec(filePath);
+    if (!FFmpegService.isLosslessAudioCodec(codec) || codec == 'flac') {
+      _log.d(
+        'Preserving native container; audio codec is ${codec ?? 'unknown'}, not a lossless source needing FLAC conversion.',
+      );
+      return filePath;
+    }
     final flacPath = await FFmpegService.convertM4aToFlac(filePath);
     if (flacPath == null) {
       return null;
@@ -7010,6 +7086,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
           safRelativeDir: relativeDir,
           safFileName: fileName,
           safOutputExt: outputExt,
+          requiresContainerConversion:
+              outputExt == '.flac' &&
+              _extensionRequiresNativeContainerConversion(item.service),
           songLinkRegion: settings.songLinkRegion,
         );
 
@@ -7120,8 +7199,14 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         final actualService =
             ((result['service'] as String?)?.toLowerCase()) ??
             item.service.toLowerCase();
+        final resultOutputExt = _downloadResultOutputExt(
+          result,
+          filePath: filePath,
+        );
         final preferredOutputExt = _extensionPreferredOutputExt(actualService);
         final shouldPreserveNativeM4a =
+            resultOutputExt == '.m4a' ||
+            resultOutputExt == '.mp4' ||
             preferredOutputExt == '.m4a' ||
             preferredOutputExt == '.mp4' ||
             _extensionPreservesNativeOutputExt(actualService, '.m4a') ||
@@ -7258,10 +7343,13 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             filePath != null &&
             (filePath.endsWith('.m4a') ||
                 filePath.endsWith('.mp4') ||
+                resultOutputExt == '.m4a' ||
+                resultOutputExt == '.mp4' ||
                 (mimeType != null && mimeType.contains('mp4')));
         final isFlacFile =
             filePath != null &&
             (filePath.endsWith('.flac') ||
+                resultOutputExt == '.flac' ||
                 (mimeType != null && mimeType.contains('flac')));
         final shouldForceTidalSafM4aHandling =
             !wasExisting &&
@@ -7756,10 +7844,15 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             !isM4aFile &&
             !wasExisting) {
           final currentFilePath = filePath;
-          final isOpusFile = filePath.endsWith('.opus');
-          final isMp3File = filePath.endsWith('.mp3');
+          final isOpusFile =
+              filePath.endsWith('.opus') ||
+              filePath.endsWith('.ogg') ||
+              resultOutputExt == '.opus' ||
+              resultOutputExt == '.ogg';
+          final isMp3File =
+              filePath.endsWith('.mp3') || resultOutputExt == '.mp3';
           final ext = isOpusFile
-              ? '.opus'
+              ? (resultOutputExt == '.ogg' ? '.ogg' : '.opus')
               : isMp3File
               ? '.mp3'
               : '.flac';

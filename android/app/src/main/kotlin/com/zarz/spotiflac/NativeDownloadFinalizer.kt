@@ -503,13 +503,21 @@ object NativeDownloadFinalizer {
         if (requestQuality(input) == "HIGH" || outputExt(input) != ".flac") return
         val requestedDecryptionExt = requestedDecryptionOutputExt(input)
         if (requestedDecryptionExt.isNotBlank() && requestedDecryptionExt != ".flac") return
-        if (!looksLikeM4a(state.filePath, state.fileName) && !shouldForceContainerConversion(input, state)) return
+        val mayNeedContainerConversion = shouldForceContainerConversion(input, state) ||
+            looksLikeM4a(state.filePath, state.fileName) ||
+            state.filePath.startsWith("content://")
+        if (!mayNeedContainerConversion) return
 
         val localInput = materializeForFFmpeg(context, input, state)
         val deleteLocalInput = state.filePath.startsWith("content://")
         val output = buildOutputPath(localInput, ".flac")
         var adoptedOutput = false
         try {
+            val codec = probePrimaryAudioCodec(localInput, shouldCancel)
+            if (!isLosslessAudioCodec(codec) || codec == "flac") {
+                Log.d(TAG, "Preserving native container; audio codec is ${codec.ifBlank { "unknown" }}")
+                return
+            }
             val result = runFFmpeg(
                 "-v error -xerror -i ${q(localInput)} -c:a flac -compression_level 8 ${q(output)} -y",
                 shouldCancel,
@@ -1317,19 +1325,34 @@ object NativeDownloadFinalizer {
     private fun shouldForceContainerConversion(input: FinalizeInput, state: FinalizeState): Boolean {
         if (input.result.optBoolean("requires_container_conversion", false)) return true
         if (input.request.optBoolean("requires_container_conversion", false)) return true
+        return false
+    }
 
-        val actualExt = normalizeExt(
-            input.result.optString("actual_extension", "")
-                .ifBlank { input.result.optString("output_extension", "") }
+    private fun probePrimaryAudioCodec(path: String, shouldCancel: () -> Boolean = { false }): String {
+        val result = runFFmpeg("-hide_banner -nostdin -i ${q(path)} -map 0:a:0 -frames:a 1 -f null -", shouldCancel)
+        val output = result.second
+        val match = Regex("Audio:\\s*([^,\\s]+)", RegexOption.IGNORE_CASE).find(output)
+        return match?.groupValues?.getOrNull(1)
+            ?.trim()
+            ?.lowercase(Locale.ROOT)
+            ?.replace('-', '_')
+            .orEmpty()
+    }
+
+    private fun isLosslessAudioCodec(codec: String): Boolean {
+        val normalized = codec.trim().lowercase(Locale.ROOT).replace('-', '_')
+        if (normalized.isBlank()) return false
+        if (normalized.startsWith("pcm_")) return true
+        return normalized in setOf(
+            "alac",
+            "flac",
+            "wavpack",
+            "ape",
+            "tta",
+            "mlp",
+            "truehd",
+            "shorten"
         )
-        if (actualExt == ".m4a" || actualExt == ".mp4") return true
-
-        val container = input.result.optString("actual_container", "")
-            .ifBlank { input.result.optString("container", "") }
-            .trim()
-            .lowercase(Locale.ROOT)
-            .removePrefix(".")
-        return container == "m4a" || container == "mp4" || container == "mov" || container == "aac"
     }
 
     private fun requestedDecryptionOutputExt(input: FinalizeInput): String {

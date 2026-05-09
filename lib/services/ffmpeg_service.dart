@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:ffmpeg_kit_flutter_new_full/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_full/ffmpeg_kit_config.dart';
 import 'package:ffmpeg_kit_flutter_new_full/ffmpeg_session.dart';
+import 'package:ffmpeg_kit_flutter_new_full/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_full/return_code.dart';
 import 'package:ffmpeg_kit_flutter_new_full/session_state.dart';
 import 'package:path_provider/path_provider.dart';
@@ -246,6 +247,40 @@ class FFmpegService {
       _log.e('FFmpeg executeWithArguments error: $e');
       return FFmpegResult(success: false, returnCode: -1, output: e.toString());
     }
+  }
+
+  static Future<String?> probePrimaryAudioCodec(String filePath) async {
+    try {
+      final session = await FFprobeKit.getMediaInformation(filePath);
+      final info = session.getMediaInformation();
+      if (info == null) return null;
+
+      for (final stream in info.getStreams()) {
+        final props = stream.getAllProperties() ?? const <String, dynamic>{};
+        if (props['codec_type']?.toString() != 'audio') continue;
+        final codec = props['codec_name']?.toString().trim().toLowerCase();
+        return codec == null || codec.isEmpty ? null : codec;
+      }
+    } catch (e) {
+      _log.w('Audio codec probe failed for $filePath: $e');
+    }
+    return null;
+  }
+
+  static bool isLosslessAudioCodec(String? codec) {
+    final normalized = codec?.trim().toLowerCase().replaceAll('-', '_') ?? '';
+    if (normalized.isEmpty) return false;
+    if (normalized.startsWith('pcm_')) return true;
+    return const {
+      'alac',
+      'flac',
+      'wavpack',
+      'ape',
+      'tta',
+      'mlp',
+      'truehd',
+      'shorten',
+    }.contains(normalized);
   }
 
   static Future<String?> convertM4aToFlac(String inputPath) async {

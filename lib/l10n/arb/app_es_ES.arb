@@ -3091,7 +3091,7 @@
   "@trackReEnrichSelectAll": {
     "description": "Select all fields checkbox in re-enrich"
   },
-  "trackEditMetadata": "Editar metadatos",
+  "trackEditMetadata": "Editar información",
   "@trackEditMetadata": {
     "description": "Menu action - edit embedded metadata"
   },
@@ -3108,7 +3108,7 @@
   "@trackCoverNoSource": {
     "description": "Snackbar when no cover art URL or embedded cover"
   },
-  "trackLyricsSaved": "Lyrics saved to {fileName}",
+  "trackLyricsSaved": "Letra guardada en {fileName}",
   "@trackLyricsSaved": {
     "description": "Snackbar after lyrics saved",
     "placeholders": {
@@ -3121,7 +3121,7 @@
   "@trackReEnrichProgress": {
     "description": "Snackbar while re-enriching metadata"
   },
-  "trackReEnrichSearching": "Buscando metadatos en línea...",
+  "trackReEnrichSearching": "Buscando información en línea...",
   "@trackReEnrichSearching": {
     "description": "Snackbar while searching metadata from internet for local items"
   },
@@ -4248,7 +4248,7 @@
   "@selectionAllPlaylistsSelected": {
     "description": "Shown when all playlists are selected in selection mode"
   },
-  "selectionTapPlaylistsToSelect": "Toca listas de reproducción para seleccionar",
+  "selectionTapPlaylistsToSelect": "Pulsa listas de reproducción para seleccionar",
   "@selectionTapPlaylistsToSelect": {
     "description": "Hint shown in playlist selection mode"
   },
@@ -5214,7 +5214,7 @@
   "@a11ySelectTrack": {
     "description": "Accessibility label for selecting a track"
   },
-  "a11yDeselectTrack": "Deseleccionar pista",
+  "a11yDeselectTrack": "No seleccionar pista",
   "@a11yDeselectTrack": {
     "description": "Accessibility label for deselecting a track"
   },

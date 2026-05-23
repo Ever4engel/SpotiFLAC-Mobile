@@ -206,7 +206,7 @@
   "@optionsEmbedLyricsSubtitle": {
     "description": "Subtitle for embed lyrics"
   },
-  "optionsMaxQualityCover": "Max Quality Cover",
+  "optionsMaxQualityCover": "اختيار اعلى جودة للغلاف",
   "@optionsMaxQualityCover": {
     "description": "Download highest quality album art"
   },

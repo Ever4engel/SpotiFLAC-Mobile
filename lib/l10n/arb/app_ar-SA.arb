@@ -647,7 +647,7 @@
   "@setupStorageDescription": {
     "description": "Explanation for storage permission"
   },
-  "setupNotificationGranted": "Notification Permission Granted!",
+  "setupNotificationGranted": "تم منح إذن الإشعارات!",
   "@setupNotificationGranted": {
     "description": "Success message for notification permission"
   },

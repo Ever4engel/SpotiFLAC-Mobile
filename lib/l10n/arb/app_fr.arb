@@ -3347,15 +3347,15 @@
   "@collectionFoldersTitle": {
     "description": "Library section title for custom folders"
   },
-  "collectionWishlist": "Wishlist",
+  "collectionWishlist": "Liste de souhaits",
   "@collectionWishlist": {
     "description": "Custom folder for saved tracks to download later"
   },
-  "collectionLoved": "Loved",
+  "collectionLoved": "Favoris",
   "@collectionLoved": {
     "description": "Custom folder for favorite tracks"
   },
-  "collectionFavoriteArtists": "Favorite Artists",
+  "collectionFavoriteArtists": "Artistes Favoris",
   "@collectionFavoriteArtists": {
     "description": "Custom folder for favorite artists"
   },
@@ -3456,7 +3456,7 @@
   "@collectionPlaylistRenamed": {
     "description": "Snackbar after renaming playlist"
   },
-  "collectionWishlistEmptyTitle": "Wishlist is empty",
+  "collectionWishlistEmptyTitle": "La liste de souhaits est vide",
   "@collectionWishlistEmptyTitle": {
     "description": "Wishlist empty state title"
   },
@@ -3505,7 +3505,7 @@
       }
     }
   },
-  "collectionAddedToLoved": "\"{trackName}\" added to Loved",
+  "collectionAddedToLoved": "\"{trackName}\" ajouté aux Favoris",
   "@collectionAddedToLoved": {
     "description": "Snackbar after adding track to loved folder",
     "placeholders": {
@@ -3514,7 +3514,7 @@
       }
     }
   },
-  "collectionRemovedFromLoved": "\"{trackName}\" removed from Loved",
+  "collectionRemovedFromLoved": "\"{trackName}\" supprimé des Favoris",
   "@collectionRemovedFromLoved": {
     "description": "Snackbar after removing track from loved folder",
     "placeholders": {
@@ -3559,27 +3559,27 @@
       }
     }
   },
-  "trackOptionAddToLoved": "Add to Loved",
+  "trackOptionAddToLoved": "Ajouter aux Favoris",
   "@trackOptionAddToLoved": {
     "description": "Bottom sheet action label - add track to loved folder"
   },
-  "trackOptionRemoveFromLoved": "Remove from Loved",
+  "trackOptionRemoveFromLoved": "Supprimer des Favoris",
   "@trackOptionRemoveFromLoved": {
     "description": "Bottom sheet action label - remove track from loved folder"
   },
-  "trackOptionAddToWishlist": "Add to Wishlist",
+  "trackOptionAddToWishlist": "Ajouter à la liste de souhaits",
   "@trackOptionAddToWishlist": {
     "description": "Bottom sheet action label - add track to wishlist"
   },
-  "trackOptionRemoveFromWishlist": "Remove from Wishlist",
+  "trackOptionRemoveFromWishlist": "Supprimer de la liste de souhaits",
   "@trackOptionRemoveFromWishlist": {
     "description": "Bottom sheet action label - remove track from wishlist"
   },
-  "artistOptionAddToFavorites": "Add to Favorite Artists",
+  "artistOptionAddToFavorites": "Ajouter aux Artistes Favoris",
   "@artistOptionAddToFavorites": {
     "description": "Action label - add artist to favorite artists"
   },
-  "artistOptionRemoveFromFavorites": "Remove from Favorite Artists",
+  "artistOptionRemoveFromFavorites": "Supprimer des Artistes Favoris",
   "@artistOptionRemoveFromFavorites": {
     "description": "Action label - remove artist from favorite artists"
   },
@@ -3790,7 +3790,7 @@
   "@tooltipAddToPlaylist": {
     "description": "Tooltip for the Add to Playlist button"
   },
-  "snackbarRemovedTracksFromLoved": "Removed {count} tracks from Loved",
+  "snackbarRemovedTracksFromLoved": "{count} titres supprimés des Favoris",
   "@snackbarRemovedTracksFromLoved": {
     "description": "Snackbar after removing multiple tracks from Loved folder",
     "placeholders": {
@@ -3799,7 +3799,7 @@
       }
     }
   },
-  "snackbarAddedTracksToLoved": "Added {count} tracks to Loved",
+  "snackbarAddedTracksToLoved": "{count} titres ajoutés aux Favoris",
   "@snackbarAddedTracksToLoved": {
     "description": "Snackbar after adding multiple tracks to Loved folder",
     "placeholders": {

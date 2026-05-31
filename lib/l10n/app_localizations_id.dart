@@ -4186,4 +4186,49 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get artistReleases => 'Releases';
+
+  @override
+  String get editMetadataSelectNone => 'Tidak ada';
+
+  @override
+  String queueRetryAllFailed(int count) {
+    return 'Coba ulang $count gagal';
+  }
+
+  @override
+  String get settingsSaveDownloadHistory => 'Simpan riwayat unduhan';
+
+  @override
+  String get settingsSaveDownloadHistorySubtitle =>
+      'Simpan unduhan selesai di riwayat dan tampilan pustaka';
+
+  @override
+  String get dialogDisableHistoryTitle => 'Matikan riwayat unduhan?';
+
+  @override
+  String get dialogDisableHistoryMessage =>
+      'Riwayat yang ada akan dihapus. File unduhan tidak akan dihapus.';
+
+  @override
+  String get dialogDisableAndClear => 'Matikan dan hapus';
+
+  @override
+  String get openInOtherServices => 'Buka di layanan lain';
+
+  @override
+  String get shareSheetNoExtensions => 'Tidak ada layanan lain yang kompatibel';
+
+  @override
+  String get shareSheetNotFound => 'Tidak ditemukan';
+
+  @override
+  String get shareSheetCopyLink => 'Salin tautan';
+
+  @override
+  String shareSheetLinkCopied(Object service) {
+    return 'Tautan $service disalin';
+  }
+
+  @override
+  String get shareSheetOpen => 'Buka';
 }

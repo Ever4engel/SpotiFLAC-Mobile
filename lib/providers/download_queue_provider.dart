@@ -4023,6 +4023,57 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     }
   }
 
+  void retryAllFailed() {
+    final failedIds = state.items
+        .where(
+          (item) =>
+              item.status == DownloadStatus.failed ||
+              item.status == DownloadStatus.skipped,
+        )
+        .map((item) => item.id)
+        .toSet();
+    if (failedIds.isEmpty) {
+      _log.d('retryAllFailed: no failed downloads to retry');
+      return;
+    }
+
+    _log.i('Retrying ${failedIds.length} failed download(s)');
+    _locallyCancelledItemIds.removeAll(failedIds);
+    _pausePendingItemIds.removeAll(failedIds);
+
+    for (final item in state.items) {
+      if (!failedIds.contains(item.id)) continue;
+      final rgKey = _albumRgKey(item.track);
+      final rgAcc = _albumRgData[rgKey];
+      if (rgAcc == null) continue;
+      rgAcc.entries.removeWhere((entry) => entry.trackId == item.track.id);
+      if (rgAcc.entries.isEmpty) {
+        _albumRgData.remove(rgKey);
+      }
+    }
+
+    final items = state.items
+        .map((item) {
+          if (!failedIds.contains(item.id)) return item;
+          return item.copyWith(
+            status: DownloadStatus.queued,
+            progress: 0,
+            speedMBps: 0,
+            bytesReceived: 0,
+            bytesTotal: 0,
+            error: null,
+          );
+        })
+        .toList(growable: false);
+
+    state = state.copyWith(items: items, isPaused: false);
+    _saveQueueToStorage();
+
+    if (!state.isProcessing) {
+      Future.microtask(() => _processQueue());
+    }
+  }
+
   void removeItem(String id) {
     final removedItem = state.items.where((item) => item.id == id).firstOrNull;
     _locallyCancelledItemIds.remove(id);
@@ -5336,6 +5387,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
               DownloadRequestPayload.nativeWorkerContractVersion,
           'run_id': runId,
           'created_at': DateTime.now().toIso8601String(),
+          'save_download_history': settings.saveDownloadHistory,
         },
       );
 
@@ -5769,22 +5821,26 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         progress: 1.0,
         filePath: filePath,
       );
-      final historyItem = result['history_item'];
-      if (historyItem is Map) {
-        try {
-          ref
-              .read(downloadHistoryProvider.notifier)
-              .adoptNativeHistoryItem(
-                DownloadHistoryItem.fromJson(
-                  Map<String, dynamic>.from(historyItem),
-                ),
-              );
-        } catch (e) {
-          _log.w('Failed to adopt native history item: $e');
+      if (settings.saveDownloadHistory) {
+        final historyItem = result['history_item'];
+        if (historyItem is Map) {
+          try {
+            ref
+                .read(downloadHistoryProvider.notifier)
+                .adoptNativeHistoryItem(
+                  DownloadHistoryItem.fromJson(
+                    Map<String, dynamic>.from(historyItem),
+                  ),
+                );
+          } catch (e) {
+            _log.w('Failed to adopt native history item: $e');
+            await ref
+                .read(downloadHistoryProvider.notifier)
+                .reloadFromStorage();
+          }
+        } else if (result['history_written'] == true) {
           await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
         }
-      } else if (result['history_written'] == true) {
-        await ref.read(downloadHistoryProvider.notifier).reloadFromStorage();
       }
       _completedInSession++;
       await _notificationService.showDownloadComplete(
@@ -5989,51 +6045,53 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       backendComposer,
     );
 
-    ref
-        .read(downloadHistoryProvider.notifier)
-        .addToHistory(
-          DownloadHistoryItem(
-            id: item.id,
-            trackName: historyTitle,
-            artistName: historyArtist,
-            albumName: historyAlbum,
-            albumArtist: normalizeOptionalString(trackToDownload.albumArtist),
-            coverUrl: normalizeCoverReference(trackToDownload.coverUrl),
-            filePath: filePath,
-            storageMode: context.storageMode,
-            downloadTreeUri: context.storageMode == 'saf'
-                ? context.downloadTreeUri
-                : null,
-            safRelativeDir: context.storageMode == 'saf'
-                ? context.safRelativeDir
-                : null,
-            safFileName: context.storageMode == 'saf'
-                ? ((resultSafFileName != null && resultSafFileName.isNotEmpty)
-                      ? resultSafFileName
-                      : context.safFileName)
-                : null,
-            safRepaired: false,
-            service: result['service'] as String? ?? item.service,
-            downloadedAt: DateTime.now(),
-            isrc: historyIsrc,
-            spotifyId: trackToDownload.id,
-            trackNumber: historyTrackNumber,
-            totalTracks: historyTotalTracks,
-            discNumber: historyDiscNumber,
-            totalDiscs: historyTotalDiscs,
-            duration: trackToDownload.duration,
-            releaseDate: historyReleaseDate,
-            quality: actualQuality,
-            bitDepth: isLossyOutput ? null : actualBitDepth,
-            sampleRate: isLossyOutput ? null : actualSampleRate,
-            bitrate: isLossyOutput ? actualBitrate : null,
-            format: historyFormat,
-            genre: normalizeOptionalString(backendGenre),
-            composer: historyComposer,
-            label: normalizeOptionalString(backendLabel),
-            copyright: normalizeOptionalString(backendCopyright),
-          ),
-        );
+    if (settings.saveDownloadHistory) {
+      ref
+          .read(downloadHistoryProvider.notifier)
+          .addToHistory(
+            DownloadHistoryItem(
+              id: item.id,
+              trackName: historyTitle,
+              artistName: historyArtist,
+              albumName: historyAlbum,
+              albumArtist: normalizeOptionalString(trackToDownload.albumArtist),
+              coverUrl: normalizeCoverReference(trackToDownload.coverUrl),
+              filePath: filePath,
+              storageMode: context.storageMode,
+              downloadTreeUri: context.storageMode == 'saf'
+                  ? context.downloadTreeUri
+                  : null,
+              safRelativeDir: context.storageMode == 'saf'
+                  ? context.safRelativeDir
+                  : null,
+              safFileName: context.storageMode == 'saf'
+                  ? ((resultSafFileName != null && resultSafFileName.isNotEmpty)
+                        ? resultSafFileName
+                        : context.safFileName)
+                  : null,
+              safRepaired: false,
+              service: result['service'] as String? ?? item.service,
+              downloadedAt: DateTime.now(),
+              isrc: historyIsrc,
+              spotifyId: trackToDownload.id,
+              trackNumber: historyTrackNumber,
+              totalTracks: historyTotalTracks,
+              discNumber: historyDiscNumber,
+              totalDiscs: historyTotalDiscs,
+              duration: trackToDownload.duration,
+              releaseDate: historyReleaseDate,
+              quality: actualQuality,
+              bitDepth: isLossyOutput ? null : actualBitDepth,
+              sampleRate: isLossyOutput ? null : actualSampleRate,
+              bitrate: isLossyOutput ? actualBitrate : null,
+              format: historyFormat,
+              genre: normalizeOptionalString(backendGenre),
+              composer: historyComposer,
+              label: normalizeOptionalString(backendLabel),
+              copyright: normalizeOptionalString(backendCopyright),
+            ),
+          );
+    }
 
     removeItem(item.id);
   }
@@ -8659,47 +8717,51 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
             backendComposer,
           );
 
-          ref
-              .read(downloadHistoryProvider.notifier)
-              .addToHistory(
-                DownloadHistoryItem(
-                  id: item.id,
-                  trackName: historyTitle,
-                  artistName: historyArtist,
-                  albumName: historyAlbum,
-                  albumArtist: historyAlbumArtist,
-                  coverUrl: normalizeCoverReference(trackToDownload.coverUrl),
-                  filePath: filePath,
-                  storageMode: effectiveSafMode ? 'saf' : 'app',
-                  downloadTreeUri: effectiveSafMode
-                      ? settings.downloadTreeUri
-                      : null,
-                  safRelativeDir: effectiveSafMode ? effectiveOutputDir : null,
-                  safFileName: effectiveSafMode
-                      ? (finalSafFileName ?? safFileName)
-                      : null,
-                  safRepaired: false,
-                  service: result['service'] as String? ?? item.service,
-                  downloadedAt: DateTime.now(),
-                  isrc: historyIsrc,
-                  spotifyId: trackToDownload.id,
-                  trackNumber: historyTrackNumber,
-                  totalTracks: historyTotalTracks,
-                  discNumber: historyDiscNumber,
-                  totalDiscs: historyTotalDiscs,
-                  duration: trackToDownload.duration,
-                  releaseDate: historyReleaseDate,
-                  quality: actualQuality,
-                  bitDepth: historyBitDepth,
-                  sampleRate: historySampleRate,
-                  bitrate: historyBitrate,
-                  format: finalFormat,
-                  genre: effectiveGenre,
-                  composer: historyComposer,
-                  label: effectiveLabel,
-                  copyright: effectiveCopyright,
-                ),
-              );
+          if (settings.saveDownloadHistory) {
+            ref
+                .read(downloadHistoryProvider.notifier)
+                .addToHistory(
+                  DownloadHistoryItem(
+                    id: item.id,
+                    trackName: historyTitle,
+                    artistName: historyArtist,
+                    albumName: historyAlbum,
+                    albumArtist: historyAlbumArtist,
+                    coverUrl: normalizeCoverReference(trackToDownload.coverUrl),
+                    filePath: filePath,
+                    storageMode: effectiveSafMode ? 'saf' : 'app',
+                    downloadTreeUri: effectiveSafMode
+                        ? settings.downloadTreeUri
+                        : null,
+                    safRelativeDir: effectiveSafMode
+                        ? effectiveOutputDir
+                        : null,
+                    safFileName: effectiveSafMode
+                        ? (finalSafFileName ?? safFileName)
+                        : null,
+                    safRepaired: false,
+                    service: result['service'] as String? ?? item.service,
+                    downloadedAt: DateTime.now(),
+                    isrc: historyIsrc,
+                    spotifyId: trackToDownload.id,
+                    trackNumber: historyTrackNumber,
+                    totalTracks: historyTotalTracks,
+                    discNumber: historyDiscNumber,
+                    totalDiscs: historyTotalDiscs,
+                    duration: trackToDownload.duration,
+                    releaseDate: historyReleaseDate,
+                    quality: actualQuality,
+                    bitDepth: historyBitDepth,
+                    sampleRate: historySampleRate,
+                    bitrate: historyBitrate,
+                    format: finalFormat,
+                    genre: effectiveGenre,
+                    composer: historyComposer,
+                    label: effectiveLabel,
+                    copyright: effectiveCopyright,
+                  ),
+                );
+          }
 
           removeItem(item.id);
         }

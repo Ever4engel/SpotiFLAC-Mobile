@@ -21,6 +21,7 @@ import 'package:spotiflac_android/providers/library_collections_provider.dart';
 import 'package:spotiflac_android/widgets/playlist_picker_sheet.dart';
 import 'package:spotiflac_android/utils/clickable_metadata.dart';
 import 'package:spotiflac_android/widgets/audio_quality_badges.dart';
+import 'package:spotiflac_android/widgets/cross_extension_share_sheet.dart';
 
 class _AlbumCache {
   static final Map<String, _CacheEntry> _cache = {};
@@ -566,6 +567,8 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                             children: [
                               _buildLoveAllButton(),
                               const SizedBox(width: 12),
+                              _buildShareButton(context, tracks, artistName),
+                              const SizedBox(width: 12),
                               FilledButton.icon(
                                 onPressed: () => _downloadAll(context),
                                 icon: Icon(Icons.download, size: 18),
@@ -841,6 +844,45 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
             : () => showAddTracksToPlaylistSheet(context, ref, _tracks!),
         icon: const Icon(Icons.add, size: 22, color: Colors.white),
         tooltip: context.l10n.tooltipAddToPlaylist,
+        padding: EdgeInsets.zero,
+      ),
+    );
+  }
+
+  Widget _buildShareButton(
+    BuildContext context,
+    List<Track> tracks,
+    String? artistName,
+  ) {
+    final sourceExtensionId = _directMetadataProviderId() ?? '';
+    final resolvedArtists =
+        artistName ??
+        tracks.firstOrNull?.albumArtist ??
+        tracks.firstOrNull?.artistName ??
+        '';
+
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: 0.15),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: IconButton(
+        onPressed: () => CrossExtensionShareSheet.show(
+          context,
+          name: widget.albumName,
+          artists: resolvedArtists,
+          type: 'album',
+          sourceExtensionId: sourceExtensionId,
+        ),
+        icon: const Icon(Icons.open_in_new_rounded, size: 22),
+        color: Colors.white,
+        tooltip: context.l10n.openInOtherServices,
         padding: EdgeInsets.zero,
       ),
     );

@@ -4254,4 +4254,49 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get artistReleases => 'Releases';
+
+  @override
+  String get editMetadataSelectNone => 'None';
+
+  @override
+  String queueRetryAllFailed(int count) {
+    return 'Retry $count failed';
+  }
+
+  @override
+  String get settingsSaveDownloadHistory => 'Save download history';
+
+  @override
+  String get settingsSaveDownloadHistorySubtitle =>
+      'Keep completed downloads in history and library views';
+
+  @override
+  String get dialogDisableHistoryTitle => 'Turn off download history?';
+
+  @override
+  String get dialogDisableHistoryMessage =>
+      'Existing history will be cleared. Downloaded files will not be deleted.';
+
+  @override
+  String get dialogDisableAndClear => 'Turn off and clear';
+
+  @override
+  String get openInOtherServices => 'Open in other services';
+
+  @override
+  String get shareSheetNoExtensions => 'No other compatible services';
+
+  @override
+  String get shareSheetNotFound => 'Not found';
+
+  @override
+  String get shareSheetCopyLink => 'Copy link';
+
+  @override
+  String shareSheetLinkCopied(Object service) {
+    return '$service link copied';
+  }
+
+  @override
+  String get shareSheetOpen => 'Open';
 }

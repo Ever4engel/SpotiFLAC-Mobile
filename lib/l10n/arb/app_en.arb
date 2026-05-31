@@ -5494,5 +5494,65 @@
   "artistReleases": "Releases",
   "@artistReleases": {
     "description": "Section header for all artist releases"
+  },
+  "editMetadataSelectNone": "None",
+  "@editMetadataSelectNone": {
+    "description": "Button to clear selected fields for auto-fill"
+  },
+  "queueRetryAllFailed": "Retry {count} failed",
+  "@queueRetryAllFailed": {
+    "description": "Button to retry every failed download in the queue",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSaveDownloadHistory": "Save download history",
+  "@settingsSaveDownloadHistory": {
+    "description": "Settings switch title for storing completed downloads in history"
+  },
+  "settingsSaveDownloadHistorySubtitle": "Keep completed downloads in history and library views",
+  "@settingsSaveDownloadHistorySubtitle": {
+    "description": "Settings switch subtitle for storing completed downloads in history"
+  },
+  "dialogDisableHistoryTitle": "Turn off download history?",
+  "@dialogDisableHistoryTitle": {
+    "description": "Confirmation dialog title shown before disabling download history"
+  },
+  "dialogDisableHistoryMessage": "Existing history will be cleared. Downloaded files will not be deleted.",
+  "@dialogDisableHistoryMessage": {
+    "description": "Confirmation dialog message shown before disabling download history"
+  },
+  "dialogDisableAndClear": "Turn off and clear",
+  "@dialogDisableAndClear": {
+    "description": "Confirmation action to disable download history and clear existing entries"
+  },
+  "openInOtherServices": "Open in other services",
+  "@openInOtherServices": {
+    "description": "Title and tooltip for finding the current collection in other services"
+  },
+  "shareSheetNoExtensions": "No other compatible services",
+  "@shareSheetNoExtensions": {
+    "description": "Empty state when no extensions can be searched for cross-service links"
+  },
+  "shareSheetNotFound": "Not found",
+  "@shareSheetNotFound": {
+    "description": "Cross-service share sheet row subtitle when a service has no match"
+  },
+  "shareSheetCopyLink": "Copy link",
+  "@shareSheetCopyLink": {
+    "description": "Tooltip for copying a cross-service link"
+  },
+  "shareSheetLinkCopied": "{service} link copied",
+  "@shareSheetLinkCopied": {
+    "description": "Snackbar after copying a cross-service link",
+    "placeholders": {
+      "service": {}
+    }
+  },
+  "shareSheetOpen": "Open",
+  "@shareSheetOpen": {
+    "description": "Tooltip for opening a cross-service link inside the app"
   }
 }

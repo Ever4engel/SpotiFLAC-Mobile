@@ -3157,6 +3157,17 @@ class MainActivity: FlutterFragmentActivity() {
                             }
                             result.success(response)
                         }
+                        "findCollectionAcrossExtensions" -> {
+                            val requestJson = call.arguments as? String ?: "{}"
+                            val response: String = withContext(Dispatchers.IO) {
+                                val method = Gobackend::class.java.getMethod(
+                                    "findCollectionAcrossExtensionsJSON",
+                                    String::class.java
+                                )
+                                method.invoke(null, requestJson) as? String ?: "[]"
+                            }
+                            result.success(response)
+                        }
                         "enrichTrackWithExtension" -> {
                             val extensionId = call.argument<String>("extension_id") ?: ""
                             val trackJson = call.argument<String>("track") ?: "{}"

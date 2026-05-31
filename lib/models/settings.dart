@@ -91,6 +91,7 @@ class AppSettings {
 
   final bool
   deduplicateDownloads; // Skip downloading tracks already present in history
+  final bool saveDownloadHistory; // Record completed downloads in local history
 
   const AppSettings({
     this.defaultService = '',
@@ -152,6 +153,7 @@ class AppSettings {
     this.musixmatchLanguage = '',
     this.lastSeenVersion = '',
     this.deduplicateDownloads = true,
+    this.saveDownloadHistory = true,
   });
 
   AppSettings copyWith({
@@ -217,6 +219,7 @@ class AppSettings {
     String? musixmatchLanguage,
     String? lastSeenVersion,
     bool? deduplicateDownloads,
+    bool? saveDownloadHistory,
   }) {
     return AppSettings(
       defaultService: defaultService ?? this.defaultService,
@@ -300,6 +303,7 @@ class AppSettings {
       musixmatchLanguage: musixmatchLanguage ?? this.musixmatchLanguage,
       lastSeenVersion: lastSeenVersion ?? this.lastSeenVersion,
       deduplicateDownloads: deduplicateDownloads ?? this.deduplicateDownloads,
+      saveDownloadHistory: saveDownloadHistory ?? this.saveDownloadHistory,
     );
   }
 

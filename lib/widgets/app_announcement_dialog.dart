@@ -36,15 +36,14 @@ class AppAnnouncementDialog extends StatelessWidget {
     } catch (_) {
       launched = false;
     }
+    if (!context.mounted) return;
     if (!launched) {
       _showCtaOpenFailed(context);
       return;
     }
 
     onDismiss();
-    if (context.mounted) {
-      Navigator.pop(context);
-    }
+    Navigator.pop(context);
   }
 
   void _showCtaOpenFailed(BuildContext context) {

@@ -146,6 +146,7 @@ object NativeDownloadFinalizer {
         requestJson: String,
         itemJson: String,
         result: JSONObject,
+        settingsJson: String = "{}",
         shouldCancel: () -> Boolean = { false },
     ): JSONObject {
         if (!result.optBoolean("success", false)) return result
@@ -217,15 +218,20 @@ object NativeDownloadFinalizer {
                 refreshFinalAudioQualityMetadata(context, result, state)
             }
 
-            val history = buildHistoryRow(effectiveInput, state)
-            upsertHistory(context, history)
+            val saveDownloadHistory = parseObject(settingsJson)
+                .optBoolean("save_download_history", true)
+            val history = if (saveDownloadHistory) {
+                buildHistoryRow(effectiveInput, state).also { upsertHistory(context, it) }
+            } else {
+                null
+            }
 
             result.put("file_path", state.filePath)
             if (state.fileName.isNotBlank()) result.put("file_name", state.fileName)
             if (state.quality.isNotBlank()) result.put("quality", state.quality)
             result.put("native_finalized", true)
-            result.put("history_written", true)
-            result.put("history_item", historyToJson(history))
+            result.put("history_written", history != null)
+            if (history != null) result.put("history_item", historyToJson(history))
         } catch (e: CancellationException) {
             cleanupFailedFinalizationOutput(context, result, initialPath, state.filePath)
             result.put("success", false)

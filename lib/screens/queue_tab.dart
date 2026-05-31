@@ -3018,24 +3018,47 @@ class _QueueTabState extends ConsumerState<QueueTab> {
         final queueCount = ref.watch(
           downloadQueueLookupProvider.select((lookup) => lookup.itemIds.length),
         );
+        final failedCount = ref.watch(
+          downloadQueueProvider.select((state) => state.failedCount),
+        );
+        final isProcessing = ref.watch(
+          downloadQueueProvider.select((state) => state.isProcessing),
+        );
         if (queueCount == 0) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
         return SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  context.l10n.queueDownloadingCount(queueCount),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      context.l10n.queueDownloadingCount(queueCount),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    _buildPauseResumeButton(context, ref, colorScheme),
+                    const SizedBox(width: 4),
+                    _buildClearAllButton(context, ref, colorScheme),
+                  ],
                 ),
-                const Spacer(),
-                _buildPauseResumeButton(context, ref, colorScheme),
-                const SizedBox(width: 4),
-                _buildClearAllButton(context, ref, colorScheme),
+                if (failedCount > 0 && !isProcessing) ...[
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _buildRetryAllFailedButton(
+                      context,
+                      ref,
+                      colorScheme,
+                      failedCount,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -4003,6 +4026,24 @@ class _QueueTabState extends ConsumerState<QueueTab> {
       style: TextButton.styleFrom(
         visualDensity: VisualDensity.compact,
         foregroundColor: colorScheme.error,
+      ),
+    );
+  }
+
+  Widget _buildRetryAllFailedButton(
+    BuildContext context,
+    WidgetRef ref,
+    ColorScheme colorScheme,
+    int failedCount,
+  ) {
+    return TextButton.icon(
+      onPressed: () =>
+          ref.read(downloadQueueProvider.notifier).retryAllFailed(),
+      icon: const Icon(Icons.replay_rounded, size: 18),
+      label: Text(context.l10n.queueRetryAllFailed(failedCount)),
+      style: TextButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        foregroundColor: colorScheme.primary,
       ),
     );
   }

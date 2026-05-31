@@ -690,7 +690,8 @@ class DownloadService : Service() {
                             request.itemId,
                             request.requestJson,
                             request.itemJson,
-                            result
+                            result,
+                            settingsJson
                         ) {
                             nativeWorkerCancelRequested ||
                                 nativeWorkerPaused ||

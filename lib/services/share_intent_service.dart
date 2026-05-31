@@ -31,6 +31,12 @@ class ShareIntentService {
     return url;
   }
 
+  void injectUrl(String url) {
+    if (url.isEmpty) return;
+    _pendingUrl = url;
+    _sharedUrlController.add(url);
+  }
+
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;

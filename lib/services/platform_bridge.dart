@@ -1309,6 +1309,25 @@ class PlatformBridge {
     return _decodeMapListResult(result, 'searchTracksWithMetadataProviders');
   }
 
+  static Future<List<Map<String, dynamic>>> findCollectionAcrossExtensions({
+    required String name,
+    required String artists,
+    required String type,
+    required String sourceExtensionId,
+  }) async {
+    final requestJson = jsonEncode({
+      'name': name,
+      'artists': artists,
+      'type': type,
+      'source_extension_id': sourceExtensionId,
+    });
+    final result = await _channel.invokeMethod(
+      'findCollectionAcrossExtensions',
+      requestJson,
+    );
+    return _decodeMapListResult(result, 'findCollectionAcrossExtensions');
+  }
+
   static Future<void> cleanupExtensions() async {
     _log.d('cleanupExtensions');
     await _channel.invokeMethod('cleanupExtensions');

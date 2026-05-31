@@ -4622,5 +4622,65 @@
   "queueRateLimitMessage": "Lagu ini mungkin masih tersedia. Tunggu beberapa menit, kurangi unduhan paralel, lalu coba lagi.",
   "@queueRateLimitMessage": {
     "description": "Explanation shown on a failed queue item when the download service rate limits requests"
+  },
+  "editMetadataSelectNone": "Tidak ada",
+  "@editMetadataSelectNone": {
+    "description": "Button to clear selected fields for auto-fill"
+  },
+  "queueRetryAllFailed": "Coba ulang {count} gagal",
+  "@queueRetryAllFailed": {
+    "description": "Button to retry every failed download in the queue",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSaveDownloadHistory": "Simpan riwayat unduhan",
+  "@settingsSaveDownloadHistory": {
+    "description": "Settings switch title for storing completed downloads in history"
+  },
+  "settingsSaveDownloadHistorySubtitle": "Simpan unduhan selesai di riwayat dan tampilan pustaka",
+  "@settingsSaveDownloadHistorySubtitle": {
+    "description": "Settings switch subtitle for storing completed downloads in history"
+  },
+  "dialogDisableHistoryTitle": "Matikan riwayat unduhan?",
+  "@dialogDisableHistoryTitle": {
+    "description": "Confirmation dialog title shown before disabling download history"
+  },
+  "dialogDisableHistoryMessage": "Riwayat yang ada akan dihapus. File unduhan tidak akan dihapus.",
+  "@dialogDisableHistoryMessage": {
+    "description": "Confirmation dialog message shown before disabling download history"
+  },
+  "dialogDisableAndClear": "Matikan dan hapus",
+  "@dialogDisableAndClear": {
+    "description": "Confirmation action to disable download history and clear existing entries"
+  },
+  "openInOtherServices": "Buka di layanan lain",
+  "@openInOtherServices": {
+    "description": "Title and tooltip for finding the current collection in other services"
+  },
+  "shareSheetNoExtensions": "Tidak ada layanan lain yang kompatibel",
+  "@shareSheetNoExtensions": {
+    "description": "Empty state when no extensions can be searched for cross-service links"
+  },
+  "shareSheetNotFound": "Tidak ditemukan",
+  "@shareSheetNotFound": {
+    "description": "Cross-service share sheet row subtitle when a service has no match"
+  },
+  "shareSheetCopyLink": "Salin tautan",
+  "@shareSheetCopyLink": {
+    "description": "Tooltip for copying a cross-service link"
+  },
+  "shareSheetLinkCopied": "Tautan {service} disalin",
+  "@shareSheetLinkCopied": {
+    "description": "Snackbar after copying a cross-service link",
+    "placeholders": {
+      "service": {}
+    }
+  },
+  "shareSheetOpen": "Buka",
+  "@shareSheetOpen": {
+    "description": "Tooltip for opening a cross-service link inside the app"
   }
 }

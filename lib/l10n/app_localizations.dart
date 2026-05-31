@@ -6994,6 +6994,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Releases'**
   String get artistReleases;
+
+  /// Button to clear selected fields for auto-fill
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get editMetadataSelectNone;
+
+  /// Button to retry every failed download in the queue
+  ///
+  /// In en, this message translates to:
+  /// **'Retry {count} failed'**
+  String queueRetryAllFailed(int count);
+
+  /// Settings switch title for storing completed downloads in history
+  ///
+  /// In en, this message translates to:
+  /// **'Save download history'**
+  String get settingsSaveDownloadHistory;
+
+  /// Settings switch subtitle for storing completed downloads in history
+  ///
+  /// In en, this message translates to:
+  /// **'Keep completed downloads in history and library views'**
+  String get settingsSaveDownloadHistorySubtitle;
+
+  /// Confirmation dialog title shown before disabling download history
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off download history?'**
+  String get dialogDisableHistoryTitle;
+
+  /// Confirmation dialog message shown before disabling download history
+  ///
+  /// In en, this message translates to:
+  /// **'Existing history will be cleared. Downloaded files will not be deleted.'**
+  String get dialogDisableHistoryMessage;
+
+  /// Confirmation action to disable download history and clear existing entries
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off and clear'**
+  String get dialogDisableAndClear;
+
+  /// Title and tooltip for finding the current collection in other services
+  ///
+  /// In en, this message translates to:
+  /// **'Open in other services'**
+  String get openInOtherServices;
+
+  /// Empty state when no extensions can be searched for cross-service links
+  ///
+  /// In en, this message translates to:
+  /// **'No other compatible services'**
+  String get shareSheetNoExtensions;
+
+  /// Cross-service share sheet row subtitle when a service has no match
+  ///
+  /// In en, this message translates to:
+  /// **'Not found'**
+  String get shareSheetNotFound;
+
+  /// Tooltip for copying a cross-service link
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get shareSheetCopyLink;
+
+  /// Snackbar after copying a cross-service link
+  ///
+  /// In en, this message translates to:
+  /// **'{service} link copied'**
+  String shareSheetLinkCopied(Object service);
+
+  /// Tooltip for opening a cross-service link inside the app
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get shareSheetOpen;
 }
 
 class _AppLocalizationsDelegate

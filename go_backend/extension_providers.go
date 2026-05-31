@@ -22,6 +22,11 @@ type ExtTrackMetadata struct {
 	Artists     string `json:"artists"`
 	AlbumName   string `json:"album_name"`
 	AlbumArtist string `json:"album_artist,omitempty"`
+	AlbumID     string `json:"album_id,omitempty"`
+	AlbumURL    string `json:"album_url,omitempty"`
+	ArtistID    string `json:"artist_id,omitempty"`
+	ArtistURL   string `json:"artist_url,omitempty"`
+	ExternalURL string `json:"external_urls,omitempty"`
 	DurationMS  int    `json:"duration_ms"`
 	CoverURL    string `json:"cover_url,omitempty"`
 	Images      string `json:"images,omitempty"`
@@ -684,6 +689,11 @@ func parseExtensionTrackValue(vm *goja.Runtime, value goja.Value) ExtTrackMetada
 		Artists:       gojaObjectString(obj, "artists"),
 		AlbumName:     gojaObjectString(obj, "album_name", "albumName"),
 		AlbumArtist:   gojaObjectString(obj, "album_artist", "albumArtist"),
+		AlbumID:       gojaObjectString(obj, "album_id", "albumId"),
+		AlbumURL:      gojaObjectString(obj, "album_url", "albumUrl"),
+		ArtistID:      gojaObjectString(obj, "artist_id", "artistId"),
+		ArtistURL:     gojaObjectString(obj, "artist_url", "artistUrl"),
+		ExternalURL:   gojaObjectString(obj, "external_urls", "externalUrls", "external_url", "externalUrl", "url"),
 		DurationMS:    gojaObjectInt(obj, "duration_ms", "durationMs"),
 		CoverURL:      gojaObjectString(obj, "cover_url", "coverUrl"),
 		Images:        gojaObjectString(obj, "images"),

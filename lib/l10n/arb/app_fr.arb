@@ -961,7 +961,7 @@
   "@errorNoTracksFound": {
     "description": "Error - search returned no results"
   },
-  "searchEmptyResultSubtitle": "Try another keyword",
+  "searchEmptyResultSubtitle": "Essayez un autre mot-clé",
   "@searchEmptyResultSubtitle": {
     "description": "Subtitle shown under the empty search result state on the home screen"
   },
@@ -4812,11 +4812,11 @@
   "@queueDownloadCompleted": {
     "description": "Accessibility label for completed download state in queue"
   },
-  "queueRateLimitTitle": "Service rate limited",
+  "queueRateLimitTitle": "Débit limité",
   "@queueRateLimitTitle": {
     "description": "Title shown on a failed queue item when the download service rate limits requests"
   },
-  "queueRateLimitMessage": "This track may still be available. Wait a few minutes, reduce parallel downloads, then retry.",
+  "queueRateLimitMessage": "Ce titre est peut-être encore disponible. Patientez quelques minutes, réduisez le nombre de téléchargements simultanés, puis réessayez.",
   "@queueRateLimitMessage": {
     "description": "Explanation shown on a failed queue item when the download service rate limits requests"
   },
@@ -5499,11 +5499,11 @@
   "@artistReleases": {
     "description": "Section header for all artist releases"
   },
-  "editMetadataSelectNone": "None",
+  "editMetadataSelectNone": "Aucun",
   "@editMetadataSelectNone": {
     "description": "Button to clear selected fields for auto-fill"
   },
-  "queueRetryAllFailed": "Retry {count} failed",
+  "queueRetryAllFailed": "{count} tentatives ont échoué",
   "@queueRetryAllFailed": {
     "description": "Button to retry every failed download in the queue",
     "placeholders": {
@@ -5512,43 +5512,43 @@
       }
     }
   },
-  "settingsSaveDownloadHistory": "Save download history",
+  "settingsSaveDownloadHistory": "Enregistrer l'historique des téléchargements",
   "@settingsSaveDownloadHistory": {
     "description": "Settings switch title for storing completed downloads in history"
   },
-  "settingsSaveDownloadHistorySubtitle": "Keep completed downloads in history and library views",
+  "settingsSaveDownloadHistorySubtitle": "Conserver les téléchargements terminés dans l'historique et la bibliothèque",
   "@settingsSaveDownloadHistorySubtitle": {
     "description": "Settings switch subtitle for storing completed downloads in history"
   },
-  "dialogDisableHistoryTitle": "Turn off download history?",
+  "dialogDisableHistoryTitle": "Désactiver l'historique des téléchargements ?",
   "@dialogDisableHistoryTitle": {
     "description": "Confirmation dialog title shown before disabling download history"
   },
-  "dialogDisableHistoryMessage": "Existing history will be cleared. Downloaded files will not be deleted.",
+  "dialogDisableHistoryMessage": "L'historique actuel sera effacé. Les fichiers téléchargés ne seront pas supprimés.",
   "@dialogDisableHistoryMessage": {
     "description": "Confirmation dialog message shown before disabling download history"
   },
-  "dialogDisableAndClear": "Turn off and clear",
+  "dialogDisableAndClear": "Désactiver et effacer",
   "@dialogDisableAndClear": {
     "description": "Confirmation action to disable download history and clear existing entries"
   },
-  "openInOtherServices": "Open in Other Services",
+  "openInOtherServices": "Ouvrir dans d'autres services",
   "@openInOtherServices": {
     "description": "Title and tooltip for finding the current collection in other services"
   },
-  "shareSheetNoExtensions": "No other compatible services",
+  "shareSheetNoExtensions": "Aucun autre service compatible",
   "@shareSheetNoExtensions": {
     "description": "Empty state when no extensions can be searched for cross-service links"
   },
-  "shareSheetNotFound": "Not found",
+  "shareSheetNotFound": "Introuvable",
   "@shareSheetNotFound": {
     "description": "Cross-service share sheet row subtitle when a service has no match"
   },
-  "shareSheetCopyLink": "Copy Link",
+  "shareSheetCopyLink": "Copier le lien",
   "@shareSheetCopyLink": {
     "description": "Tooltip for copying a cross-service link"
   },
-  "shareSheetLinkCopied": "{service} link copied",
+  "shareSheetLinkCopied": "Lien {service} copié",
   "@shareSheetLinkCopied": {
     "description": "Snackbar after copying a cross-service link",
     "placeholders": {

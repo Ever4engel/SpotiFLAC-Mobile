@@ -592,6 +592,7 @@ class _MainShellState extends ConsumerState<MainShell>
                 onDestinationSelected: _onNavTap,
                 animationDuration: const Duration(milliseconds: 500),
                 elevation: 0,
+                height: 64,
                 backgroundColor: settingsGroupColor(
                   context,
                 ).withValues(alpha: 0.72),
